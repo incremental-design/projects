@@ -151,12 +151,16 @@
           (import
             ./configVscode.nix
             {inherit pkgs;})
+          (import
+            ./configZed.nix
+            {inherit pkgs;})
         ];
       in
         pkgs.mkShell {
           packages = [pkgs.glow] ++ p;
           shellHook = ''
             installVscodeConfiguration
+            installZedConfiguration
 
             glow <<-'EOF' >&2
             | command | description |
