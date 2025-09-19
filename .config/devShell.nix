@@ -147,14 +147,16 @@
     ))
     // {
       default = let
-        p = [
-          (import
-            ./configVscode.nix
-            {inherit pkgs;})
-          (import
-            ./configZed.nix
-            {inherit pkgs;})
-        ];
+        p =
+          [
+            (import
+              ./configVscode.nix
+              {inherit pkgs;})
+            (import
+              ./configZed.nix
+              {inherit pkgs;})
+          ]
+          ++ (import ./stubProject.nix {inherit pkgs;});
       in
         pkgs.mkShell {
           packages = [pkgs.glow] ++ p;
