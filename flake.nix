@@ -63,7 +63,6 @@
   in {
     # Schemas tell Nix about the structure of your flake's outputs
     schemas = flake-schemas.schemas;
-
     # Development environments
     devShells = forEachSupportedSystem (
       {pkgs}: let
@@ -286,6 +285,9 @@
 #                   ^^^^^^^^^^^^ ^^^^^^^^^^^^ ^^^^^^^^^^^^^^
 #                   Add any tools your build needs
 #
+#   phases = [ buildPhase ]           # see .config/commitlint.nix for
+#                                     # a detailed explanation of phases
+#
 #   # Build commands go in buildPhase
 #   buildPhase = ''
 #     npm install
@@ -452,6 +454,8 @@
 #
 # If you want to build the C project, without building
 # the Go and JS project, you can `nix build .#example-c-project`
+#
+# To see this in action, go to .config/commitlint.nix
 #
 # DEBUGGING NIX BUILD
 #
@@ -1284,6 +1288,9 @@
 #   features = [ "auth" "logging" "metrics" ];
 # };
 # ```
+#
+# see .config/commitlint-config.nix for an example
+# of pkgs.formats.yaml
 #
 # Writing shell scripts with string interpolation:
 # ```nix

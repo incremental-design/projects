@@ -147,11 +147,17 @@
     ))
     // {
       default = let
-        p = [];
+        p = [
+          (import
+            ./configVscode.nix
+            {inherit pkgs;})
+        ];
       in
         pkgs.mkShell {
           packages = [pkgs.glow] ++ p;
           shellHook = ''
+            installVscodeConfiguration
+
             glow <<-'EOF' >&2
             | command | description |
             |:--------|:------------|
