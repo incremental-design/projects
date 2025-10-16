@@ -1,0 +1,11 @@
+# Projects
+
+<!-- todo asciiart of incremental.design logo -->
+
+The monorepo for all of incremental.design's open source projects.
+
+## How to use Projects:
+
+Each package in projects contains its own README with installation and usage instructions. In most cases, you will check out a package from a respective language's package manager, interact with an API or download a binary. You will only ever interact with this repository if you contribute to it.
+
+## [Contribute to projects:](CONTRIBUTE.md)
