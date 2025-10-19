@@ -1,0 +1,61 @@
+name: Only allow fast-forward merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  enforce-rebase:
+    name: Enforce Rebase Requirement
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if branch is rebased
+        run: |
+          # Exit at first failure
+          set -e
+
+          # Get the target branch (base of the PR)
+          TARGET_BRANCH="${{ github.base_ref }}"
+          FEATURE_BRANCH="${{ github.head_ref }}"
+
+          echo "============================================================"
+          echo "🔍 Checking rebase requirement"
+          echo "📥 Target branch: $TARGET_BRANCH"
+          echo "🌿 Feature branch: $FEATURE_BRANCH"
+          echo "============================================================"
+
+          # Get the HEAD of the target branch
+          TARGET_HEAD=$(git rev-parse "origin/$TARGET_BRANCH")
+          echo "🎯 Target branch HEAD: $TARGET_HEAD"
+
+          # Get the merge base between feature branch and target branch
+          MERGE_BASE=$(git merge-base HEAD "origin/$TARGET_BRANCH")
+          echo "🔗 Merge base: $MERGE_BASE"
+
+          # Compare them
+          if [[ "$TARGET_HEAD" == "$MERGE_BASE" ]]; then
+            echo ""
+            echo "✅ SUCCESS: Feature branch is properly rebased"
+            echo "   The feature branch base matches the target branch HEAD"
+            echo "   Safe to merge! 🚀"
+          else
+            echo ""
+            echo "❌ FAILURE: Feature branch needs to be rebased"
+            echo ""
+            echo "The feature branch is not up-to-date with the target branch."
+            echo "Before merging, please rebase your feature branch:"
+            echo ""
+            echo "  git checkout $FEATURE_BRANCH"
+            echo "  git fetch origin"
+            echo "  git rebase origin/$TARGET_BRANCH"
+            echo "  git push --force-with-lease"
+            echo ""
+            echo "This ensures a clean linear history without merge commits."
+            exit 1
+          fi
