@@ -52,7 +52,6 @@
       COMMITLINT_CONFIG = "${config}";
     };
     text = ''
-
       MSG_FILE=''${*:-}
 
       if [ ! -f "$MSG_FILE" ]; then
@@ -63,7 +62,7 @@
 
       echo "$MSG_FILE"
 
-      commitlint lint "$MSG_FILE"
+      commitlint lint < "$MSG_FILE"
     '';
   };
 in
