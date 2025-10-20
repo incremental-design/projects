@@ -1,0 +1,6 @@
+*
+!.zed
+!.zed/**
+!.gitignore
+!README.md
+!CONTRIBUTE.md
