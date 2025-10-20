@@ -1,6 +1,10 @@
 *
-!.zed
-!.zed/**
+!.config
+!.config/**
+!.envrc
 !.gitignore
-!README.md
 !CONTRIBUTE.md
+!flake.nix
+!flake.lock
+!LICENSE
+!README.md
