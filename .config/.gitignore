@@ -2,9 +2,12 @@
 !language-nix
 !.envrc
 !.gitignore
+!commitlintConfig.nix
 !configVscode.nix
 !importFromLanguageFolder.nix
 !configZed.nix
 !devShell.nix
 !sanitizeProjectName.nix
 !stubProject.nix
+!CONTRIBUTE.md
+!lintCommit.nix
