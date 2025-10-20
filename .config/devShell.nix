@@ -688,6 +688,9 @@
             (import
               ./configZed.nix
               {inherit pkgs;})
+            (import
+              ./installGitHooks.nix
+              {inherit pkgs;})
           ]
           ++ (import ./stubProject.nix {inherit pkgs;});
       in
