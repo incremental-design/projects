@@ -80,7 +80,7 @@
 
         direnv allow
 
-        ${builtins.concatStringsSep "\n" (["SHA=$(git rev-parse HEAD)"] ++ (builtins.map (s: "direnv exec ./ " + s + "$SHA") validSteps))}
+        ${builtins.concatStringsSep "\n" (["SHA=$(git rev-parse HEAD)"] ++ (builtins.map (s: "direnv exec ./ " + s + " \"$SHA\"") validSteps))}
 
         ${
         if cleanup
