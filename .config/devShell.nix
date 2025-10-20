@@ -606,7 +606,6 @@
                 bumpSemVer
                 writeChangelog
                 pkgs.git
-                pkgs.gnupg
                 devShellConfig.packages.publish
               ];
               text = ''
@@ -624,7 +623,24 @@
 
                 git add -A
                 git commit -m "chore: bump \"$PROJECT\" to \"$NEW_SV\"" -m "$CHANGELOG"
-                # Create signed tag (GPG required)
+                # Create signed tag with -s flag (GPG signing)
+                # Git Config Hierarchy for Signing:
+                #
+                # Git Config Hierarchy for Signing
+                # |
+                # |-- 1. Repository-specific config
+                # |     (.git/config)
+                # |     user.signingkey = <key-id>
+                # |
+                # |-- 2. Global git config
+                # |     (~/.gitconfig)
+                # |     user.signingkey = <key-id>
+                # |
+                # |-- 3. System git config
+                # |     (/etc/gitconfig)
+                # |
+                # '-- 4. Default GPG key for user.email
+                #       (from ~/.gnupg/ keyring)
                 git tag -s "$PROJECT/v$NEW_SV" -m "chore: bump \"$PROJECT\" to \"$NEW_SV\"" -m "$CHANGELOG"
 
                 glow <<-EOF >&2
