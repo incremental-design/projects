@@ -10,6 +10,7 @@
 !sanitizeProjectName.nix
 !stubProject.nix
 !CONTRIBUTE.md
+!installGitHooks.nix
 !lintCommit.nix
 !recurse.nix
 !getSemverTag.nix
