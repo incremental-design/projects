@@ -770,6 +770,7 @@
           [
             (import ./configVscode.nix {inherit pkgs;})
             (import ./configZed.nix {inherit pkgs;})
+            (import ./installGitHooks.nix {inherit pkgs;})
           ]
           ++ (import ./stubProject.nix {inherit pkgs;})
           ++ builtins.map (cmd:
@@ -799,6 +800,7 @@
           shellHook = ''
             project-install-vscode-configuration
             project-install-zed-configuration
+            project-install-git-hooks
             ${pkgs.glow}/bin/glow <<-'EOF' >&2
             ${builtins.concatStringsSep "\n" commandDescriptions}
             EOF
