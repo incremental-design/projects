@@ -146,12 +146,15 @@
     ))
     // {
       default = let
-        p = [];
+        p = [
+          (import ./configVscode.nix {inherit pkgs;})
+        ];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {
           packages = [pkgs.glow pkgs.git] ++ p;
           shellHook = ''
+            project-install-vscode-configuration
             ${pkgs.glow}/bin/glow <<-'EOF' >&2
             ${builtins.concatStringsSep "\n" commandDescriptions}
             EOF
