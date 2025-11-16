@@ -145,7 +145,9 @@
     ))
     // {
       default = let
-        p = [];
+        p = [
+          (import ./configVscode.nix {inherit pkgs;})
+        ];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {
@@ -156,6 +158,8 @@
               echo "no .git/ found, are you in the root of the repository?" >&2
               exit 1
             fi
+
+            project-install-vscode-configuration
 
             ${pkgs.glow}/bin/glow <<-'EOF' >&2
             ${builtins.concatStringsSep "\n" commandDescriptions}
