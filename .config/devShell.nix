@@ -147,6 +147,7 @@
       default = let
         p = [
           (import ./configVscode.nix {inherit pkgs;})
+          (import ./configZed.nix {inherit pkgs;})
         ];
         commandDescriptions = writeCommandDescriptions p;
       in
@@ -160,6 +161,7 @@
             fi
 
             project-install-vscode-configuration
+            project-install-zed-configuration
 
             ${pkgs.glow}/bin/glow <<-'EOF' >&2
             ${builtins.concatStringsSep "\n" commandDescriptions}
