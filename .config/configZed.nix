@@ -101,8 +101,8 @@
       ln -s ${zedDebug} debug.json
     '';
   };
-  installZedConfiguration = pkgs.writeShellApplication {
-    name = "installZedConfiguration";
+  project-install-zed-configuration = pkgs.writeShellApplication {
+    name = "project-install-zed-configuration";
     meta = {
       description = "install .zed/ configuration folder, if .zed/ is not already present. Automatically run when this shell is opened";
     };
@@ -142,4 +142,4 @@
     '';
   };
 in
-  installZedConfiguration
+  project-install-zed-configuration
