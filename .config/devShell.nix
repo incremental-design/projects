@@ -41,7 +41,7 @@
   devShellConfigs;
   wrappedPackages = devShellConfig:
     pkgs.lib.fix (
-      let
+      self: let
         packages = builtins.listToAttrs (
           builtins.map (package: {
             name = package.name;
@@ -50,52 +50,175 @@
           devShellConfig.packages
         );
         name = devShellConfig.name;
-      in (
-        self:
-          packages
-          // (
-            if builtins.hasAttr "project-lint" packages
-            then {
-              project-lint = pkgs.writeShellApplication {
-                name = "project-lint";
-                meta = packages.project-lint.meta;
-                text = ''
-                  ${packages.project-lint}/bin/project-lint
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-lint"
-          )
-          // (
-            if builtins.hasAttr "project-build" packages
-            then {
-              project-build = pkgs.writeShellApplication {
-                name = "project-build";
-                meta = packages.project-build.meta;
-                text = ''
-                  ${packages.project-build}/bin/project-build
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-build"
-          )
-          // (
-            if builtins.hasAttr "project-test" packages
-            then {
-              project-test = pkgs.writeShellApplication {
-                name = "project-test";
-                meta = packages.project-test.meta;
-                # todo pass a list of files that changed in current commit
-                text = ''
-                  ${packages.project-test}/bin/project-test
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-test"
-          )
-      )
-    );
+        getChangedAtSha = pkgs.writeShellApplication {
+          name = "getChangedAtSha";
+          runtimeInputs = [pkgs.git];
+          text = ''
+            SHA="''${1:-}"
 
+            FILES=""
+
+            if [ -z "$SHA" ]; then
+              # Get uncommitted files in current directory
+              while IFS= read -r file; do
+                if [ -n "$FILES" ]; then
+                  FILES="$FILES"$'\n'"$(realpath "$file")"
+                else
+                  FILES="$(realpath "$file")"
+                fi
+              done < <(git diff HEAD --name-only --relative -- .)
+            else
+              # Get committed files in current directory at SHA
+              while IFS= read -r file; do
+                if [ -n "$FILES" ]; then
+                  FILES="$FILES"$'\n'"$(realpath "$file")"
+                else
+                  FILES="$(realpath "$file")"
+                fi
+              done < <(git diff-tree -r --name-only --relative "$SHA" -- .)
+            fi
+
+            echo "$FILES"
+          '';
+        };
+        getAllAtSha = pkgs.writeShellApplication {
+          name = "getAllAtSha";
+          runtimeInputs = [pkgs.git pkgs.fd];
+          text = ''
+            FILES=""
+
+            # Get all files in current directory recursively
+            while IFS= read -r file; do
+              if [ -n "$FILES" ]; then
+                FILES="$FILES"$'\n'"$(realpath "$file")"
+              else
+                FILES="$(realpath "$file")"
+              fi
+            done < <(fd . --type f)
+
+            echo "$FILES"
+          '';
+        };
+      in
+        packages
+        // (
+          if builtins.hasAttr "project-lint" packages
+          then {
+            # wraps project-lint script, which checks for syntax errors
+            # in the current project.
+            #
+            # if a commit hash is passed into this script as $1, it provides
+            # the project-lint script with the list of files that changed
+            # in the project, at the commit.
+            #
+            # else, it provides the project-lint script with the list of
+            # uncommitted changes to the project.
+            #
+            # only invokes the project-lint script if the project has
+            # uncommitted changes.
+            project-lint = pkgs.writeShellApplication {
+              name = "project-lint";
+              meta = packages.project-lint.meta;
+              runtimeInputs = [pkgs.git packages.project-lint getChangedAtSha getAllAtSha];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+                SHA="''${2:-}"
+
+                FILES=""
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    FILES=$(getChangedAtSha "$SHA")
+                else
+                    FILES=$(getAllAtSha)
+                fi
+
+                if [ -n "$FILES" ]; then
+                  project-lint "$FILES" || (echo "failed to lint $(realpath .)" >&2 && exit 1)
+                else
+                  echo "nothing new to lint: no files changed in $(realpath .)" >&2
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-lint"
+        )
+        // (
+          if builtins.hasAttr "project-build" packages
+          then {
+            # wraps the project build script.
+            #
+            # provides the project build script with a list of filest.
+            #
+            # only invokes the project build script if the project has
+            # uncommitted changes.
+            #
+            # prints paths to built artifacts to stdout.
+            project-build = pkgs.writeShellApplication {
+              name = "project-build";
+              meta = packages.project-build.meta;
+              runtimeInputs = [pkgs.git packages.project-build getChangedAtSha getAllAtSha];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+                SHA="''${2:-}"
+
+                FILES=""
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    FILES=$(getChangedAtSha "$SHA")
+                else
+                    FILES=$(getAllAtSha)
+                fi
+
+                if [ -n "$FILES" ]; then
+                  project-build "$FILES" || (echo "failed to build $(realpath .)" >&2 && exit 1)
+                else
+                  echo "nothing new to build: no files changed in $(realpath .)" >&2
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-build"
+        )
+        // (
+          if builtins.hasAttr "project-test" packages
+          then {
+            # wraps the project test script.
+            #
+            # if a commit hash is passed into this script as $1, it provides
+            # the project test script with the list of files that changed
+            # in the project, at the commit.
+            #
+            # else, it provides the project test script with the list of
+            # uncommitted changes to the project.
+            #
+            # does not invoke the project test script if nothing has changed.
+            #
+            # prints path to test artifacts, such as coverage reports, to stdout.
+            project-test = pkgs.writeShellApplication {
+              name = "project-test";
+              meta = packages.project-test.meta;
+              runtimeInputs = [pkgs.git packages.project-test getChangedAtSha getAllAtSha];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+                SHA="''${2:-}"
+
+                FILES=""
+
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    FILES=$(getChangedAtSha "$SHA")
+                else
+                    FILES=$(getAllAtSha)
+                fi
+
+                if [ -n "$FILES" ]; then
+                  project-test "$FILES" || (echo "failed to test $(realpath .)" >&2 && exit 1)
+                else
+                  echo "nothing new to test: no files changed in $(realpath .)" >&2
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-test"
+        )
+    );
   listBins = package: builtins.map (p: p.name) (builtins.filter (dirent: dirent.value != "directory") (pkgs.lib.attrsToList (builtins.readDir "${package}/bin")));
   hasBins = package: pkgs.lib.pathExists "${package}/bin" && (builtins.length (listBins package) > 0);
   filterPackagesWithBins = packages: builtins.filter (package: hasBins package) packages;
@@ -121,7 +244,7 @@
       packages = with pkgs;
         [coreutils glow]
         ++ builtins.attrValues (
-          # read the packages in devShellConfig, get the lint, lintSemVer, build, runTest, publishDryRun and publish packages and wrap them before re-emitting them into the list of packages
+          # read the packages in devShellConfig, get the project-lint, project-build, project-test packages and wrap them before re-emitting them into the list of packages
           wrappedPackages devShellConfig
         );
       shellHook = let
@@ -151,7 +274,27 @@
             (import ./configVscode.nix {inherit pkgs;})
             (import ./configZed.nix {inherit pkgs;})
           ]
-          ++ (import ./stubProject.nix {inherit pkgs;});
+          ++ (import ./stubProject.nix {inherit pkgs;})
+          ++ builtins.map (cmd:
+            pkgs.writeShellApplication {
+              name = "${cmd}-all";
+              meta = {
+                description = "${cmd} all projects";
+              };
+              runtimeInputs = [
+                (import
+                  ./recurse.nix
+                  {
+                    inherit pkgs;
+                    steps = [cmd];
+                    ignoreUnchanged = false;
+                    cleanup = true;
+                  })
+              ];
+              text = ''
+                recurse
+              '';
+            }) ["project-lint" "project-build" "project-test"];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {

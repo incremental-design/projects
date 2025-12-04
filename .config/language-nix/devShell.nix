@@ -15,12 +15,7 @@
           ];
           text = ''
 
-            LINES=""
-            while IFS= read -r dirent; do
-              if [ -f "$dirent" ]; then
-                LINES="''${LINES:+$LINES$'\n'}$dirent"
-              fi
-            done < <(ls)
+            LINES="''${1:-}"
 
             if [ -z "$LINES" ]; then
             cat << 'EOF' >&2
@@ -54,7 +49,6 @@
             fi
           '';
         })
-      # build the default package in the current project's flake
       (pkgs.writeShellApplication
         {
           name = "project-build";
