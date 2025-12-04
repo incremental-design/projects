@@ -48,9 +48,29 @@
   };
 
   # Flake outputs that other flakes can use
-  outputs = {flake-schemas, ...}: {
+  outputs = {
+    flake-schemas,
+    nixpkgs,
+    ...
+  }: let
+    # Helpers for producing system-specific outputs
+    supportedSystems = ["x86_64-linux" "aarch64-darwin" "x86_64-darwin" "aarch64-linux"];
+    forEachSupportedSystem = f:
+      nixpkgs.lib.genAttrs supportedSystems (system:
+        f {
+          pkgs = import nixpkgs {inherit system;};
+        });
+  in {
     # Schemas tell Nix about the structure of your flake's outputs
     schemas = flake-schemas.schemas;
+
+    # Development environments
+    devShells = forEachSupportedSystem (
+      {pkgs}: let
+        languageDevShells = import ./.config/devShell.nix {inherit pkgs;};
+      in
+        languageDevShells
+    );
   };
 }
 # New to nix? Confused by the syntax of this flake?
