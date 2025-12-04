@@ -1,0 +1,8 @@
+*
+!language-nix
+!.envrc
+!.gitignore
+!configVscode.nix
+!importFromLanguageFolder.nix
+!configZed.nix
+!devShell.nix
