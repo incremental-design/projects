@@ -11,3 +11,5 @@
 !stubProject.nix
 !CONTRIBUTE.md
 !lintCommit.nix
+!recurse.nix
+!getSemverTag.nix

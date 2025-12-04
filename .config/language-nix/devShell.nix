@@ -12,15 +12,12 @@
           };
           runtimeInputs = with pkgs; [
             alejandra
-            fd
+            gnugrep
+            findutils
           ];
           text = ''
-            # Find all .nix files and store in bash array
-            mapfile -d ''' -t nixfiles < <(fd --type f '\.nix$' -0)
-
-            if [ ''${#nixfiles[@]} -gt 0 ]; then
-              alejandra -c "''${nixfiles[@]}" >&2
-            fi
+            # Filter arguments to only .nix files and pass to alejandra
+            printf '%s\0' "$@" | grep -z '\.nix$' | xargs -0 -r alejandra -c
           '';
         })
       (pkgs.writeShellApplication
@@ -47,7 +44,7 @@
 
             # nix build will always output result* symlinks e.g. result/, result-dev/, result-docs/ ...
             # print absolute path to each, split paths by null bytes
-            fd --max-depth 1 --type l "result*" -0 --absolute
+            fd --max-depth 1 --type l "result*" -0 --absolute-path
           '';
         })
       # run all checks in the current project's flake
