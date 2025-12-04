@@ -41,7 +41,7 @@
   devShellConfigs;
   wrappedPackages = devShellConfig:
     pkgs.lib.fix (
-      let
+      self: let
         packages = builtins.listToAttrs (
           builtins.map (package: {
             name = package.name;
@@ -50,50 +50,169 @@
           devShellConfig.packages
         );
         name = devShellConfig.name;
-      in (
-        self:
-          packages
-          // (
-            if builtins.hasAttr "project-lint" packages
-            then {
-              project-lint = pkgs.writeShellApplication {
-                name = "project-lint";
-                meta = packages.project-lint.meta;
-                text = ''
-                  ${packages.project-lint}/bin/project-lint
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-lint"
-          )
-          // (
-            if builtins.hasAttr "project-build" packages
-            then {
-              project-build = pkgs.writeShellApplication {
-                name = "project-build";
-                meta = packages.project-build.meta;
-                text = ''
-                  ${packages.project-build}/bin/project-build
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-build"
-          )
-          // (
-            if builtins.hasAttr "project-test" packages
-            then {
-              project-test = pkgs.writeShellApplication {
-                name = "project-test";
-                meta = packages.project-test.meta;
-                # todo pass a list of files that changed in current commit
-                text = ''
-                  ${packages.project-test}/bin/project-test
-                '';
-              };
-            }
-            else throw "devShellConfig ${name} missing project-test"
-          )
-      )
+        getChanged = pkgs.writeShellApplication {
+          name = "getChanged";
+          runtimeInputs = [pkgs.git];
+          text = ''
+            # Get union of files changed in HEAD and uncommitted changes
+            # Limited to current working directory
+
+            # Use associative array for deduplication
+            declare -A seen_files=()
+
+            # Files changed in HEAD commit
+            while IFS= read -r -d "" file; do
+              seen_files["$file"]=1
+            done < <(git diff --name-only -z HEAD~1 HEAD -- .)
+
+            # Files with uncommitted changes (staged + unstaged)
+            while IFS= read -r -d "" file; do
+              seen_files["$file"]=1
+            done < <(git diff --name-only -z HEAD -- .)
+
+            # Get nested projects (directories with .envrc files)
+            declare -A nested_projects
+            while IFS= read -r -d "" subdir; do
+              nested_projects["$subdir"]=1
+            done < <(fd --type f --hidden '.envrc' . --exec printf '%s\0' '{//}')
+
+            # Remove files that are in nested projects
+            declare -A filtered_files
+            for file in "''${!seen_files[@]}"; do
+              file_dir=$(dirname "$file")
+              if [[ -z "''${nested_projects["$file_dir"]:-}" ]]; then
+                filtered_files["$file"]=1
+              fi
+            done
+
+            # Output unique filenames with null-byte separation for xargs -0
+            printf "%s\0" "''${!filtered_files[@]}"
+          '';
+        };
+        getAll = pkgs.writeShellApplication {
+          name = "getAll";
+          runtimeInputs = [pkgs.fd];
+          text = ''
+            # list nested projects
+            declare -A nested_projects
+            while IFS= read -r -d "" subdir; do
+              nested_projects["$subdir"]=1
+            done < <(fd --type f --hidden '.envrc' . --exec printf '%s\0' '{//}')
+
+            # Build exclude arguments from nested_projects
+            exclude_args=()
+            for project in "''${!nested_projects[@]}"; do
+              exclude_args+=(--exclude "$project")
+            done
+
+            # Associative array to store all files in project
+            declare -A files_in_project
+
+            # Get all files excluding nested projects and gitignored files
+            while IFS= read -r -d "" file; do
+              files_in_project["$file"]=1
+            done < <(fd "''${exclude_args[@]}" --type f --hidden --print0 .)
+
+            # Output all collected files with null separator for xargs
+            printf "%s\0" "''${!files_in_project[@]}"
+          '';
+        };
+      in
+        packages
+        // (
+          if builtins.hasAttr "project-lint" packages
+          then {
+            # wraps the project lint script.
+            #
+            # accepts $1 with "true" or "false", defaults to "false"
+            #
+            # $1="true":  lint CHANGED files in project. this includes
+            #             any uncommitted change
+            #
+            # $1="false": lint ALL files in project
+            #
+            # exits 0 if lint succeeds, 1 if it fails
+            project-lint = pkgs.writeShellApplication {
+              name = "project-lint";
+              meta = packages.project-lint.meta;
+              runtimeInputs = [pkgs.git pkgs.findutils packages.project-lint getAll getChanged];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+
+                # project lint expects a list of files to lint as arguments
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    getChanged | xargs -0 -r project-lint || (echo "failed to lint $(realpath .)" >&2 && exit 1)
+                else
+                    getAll | xargs -0 -r project-lint || (echo "failed to lint $(realpath .)" >&2 && exit 1)
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-lint"
+        )
+        // (
+          if builtins.hasAttr "project-build" packages
+          then {
+            # wraps the project build script.
+            #
+            # accepts $1 with "true" or "false", defaults to "false"
+            #
+            # $1="true":  build CHANGED files in project. this includes
+            #             any uncommitted change
+            #
+            # $1="false": build ALL files in project
+            #
+            # exits 0 if build succeeds, 1 if it fails
+            project-build = pkgs.writeShellApplication {
+              name = "project-build";
+              meta = packages.project-build.meta;
+              runtimeInputs = [pkgs.git pkgs.findutils packages.project-build getAll getChanged];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+
+                # project-build expects a list of files to build as arguments
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    getChanged | xargs -0 -r project-build || (echo "failed to build $(realpath .)" >&2 && exit 1)
+                else
+                    getAll | xargs -0 -r project-build || (echo "failed to build $(realpath .)" >&2 && exit 1)
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-build"
+        )
+        // (
+          if builtins.hasAttr "project-test" packages
+          then {
+            # wraps the project test script.
+            #
+            # accepts $1 with "true" or "false", defaults to "false"
+            #
+            # $1="true":  test CHANGED files in project. this includes
+            #             any uncommitted change
+            #
+            # $1="false": test ALL files in project
+            #
+            # Does not invoke the project test script if nothing has changed.
+            # Prints path to test artifacts, such as coverage reports, to stdout.
+            project-test = pkgs.writeShellApplication {
+              name = "project-test";
+              meta = packages.project-test.meta;
+              runtimeInputs = [pkgs.git pkgs.findutils packages.project-test getAll getChanged];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-false}"
+
+                # project-test expects a list of files to test as arguments
+                if [ "$IGNORE_UNCHANGED" = "true" ]; then
+                    getChanged | xargs -0 -r project-test || (echo "failed to test $(realpath .)" >&2 && exit 1)
+                else
+                    getAll | xargs -0 -r project-test || (echo "failed to test $(realpath .)" >&2 && exit 1)
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-test"
+        )
     );
   listBins = package: builtins.map (p: p.name) (builtins.filter (dirent: dirent.value != "directory") (pkgs.lib.attrsToList (builtins.readDir "${package}/bin")));
   hasBins = package: pkgs.lib.pathExists "${package}/bin" && (builtins.length (listBins package) > 0);
@@ -120,7 +239,7 @@
       packages = with pkgs;
         [coreutils glow]
         ++ builtins.attrValues (
-          # read the packages in devShellConfig, get the lint, lintSemVer, build, runTest, publishDryRun and publish packages and wrap them before re-emitting them into the list of packages
+          # read the packages in devShellConfig, get the project-lint, project-build, project-test packages and wrap them before re-emitting them into the list of packages
           wrappedPackages devShellConfig
         );
       shellHook = let
@@ -150,7 +269,26 @@
             (import ./configVscode.nix {inherit pkgs;})
             (import ./configZed.nix {inherit pkgs;})
           ]
-          ++ (import ./stubProject.nix {inherit pkgs;});
+          ++ (import ./stubProject.nix {inherit pkgs;})
+          ++ builtins.map (cmd:
+            pkgs.writeShellApplication {
+              name = "${cmd}-all";
+              meta = {
+                description = "${cmd} all projects";
+              };
+              runtimeInputs = [
+                (import
+                  ./recurse.nix
+                  {
+                    inherit pkgs;
+                    steps = [cmd];
+                  })
+              ];
+              text = ''
+                IGNORE_UNCHANGED="''${1:-"true"}"
+                recurse "$IGNORE_UNCHANGED"
+              '';
+            }) ["project-lint" "project-build" "project-test"];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {
@@ -171,16 +309,7 @@
           '';
         };
     };
-in {
-  inherit
-    # language-specific dev shell configs and function to turn dev shell configs into dev shells
-    # exported to make it possible for child flakes to inherit from dev shell configs and make dev shells
-    validDevShellConfigs
-    makeDevShell
-    # the language-specific dev shells and root dev shell, used in the root flake
-    devShells
-    ;
-}
+in {inherit validDevShellConfigs makeDevShell devShells;}
 #
 # LANGUAGE-SPECIFIC DEVELOPMENT SHELLS
 #
@@ -299,7 +428,10 @@ in {
 #         ...                               # packages used to lint project files
 #       ];
 #       text = ''
+#         for file in "$@"; do              # $@ is the list of files that have
+#                                           # changed since previous commit
 #         ...                               # command used to lint project files
+#         done
 #       '';
 #     })
 #
@@ -309,9 +441,13 @@ in {
 #         description = "..."               # description of what gets built
 #       };
 #       runtimeInputs = with pkgs; [
+#         for file in "$@"; do              # $@ is list of files that have changed
+#                                           # since previous commit
 #         ...                               # packages used to build project files
+#         done
 #       ];
 #       text = ''
+#
 #         ...                               # command used to build project files
 #                                           # command used to print project files
 #                                           # to stdout, separated by null bytes
