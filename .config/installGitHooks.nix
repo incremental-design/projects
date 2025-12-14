@@ -3,7 +3,7 @@
   commitMsg = "${lintCommit}/bin/lintCommit";
   prePush = "${(import ./recurse.nix {
     inherit pkgs;
-    steps = ["project-lint" "project-build" "project-test"];
+    steps = ["project-lint" "project-lint-semver" "project-build" "project-test"];
     ignoreUnchanged = true;
     cleanup = true;
   })}/bin/recurse";
