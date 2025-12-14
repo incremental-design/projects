@@ -30,6 +30,14 @@ name: Validate Commits on Push
 #          ▼
 # ┌──────────────────┐
 # │                  │
+# │  Lint Semantic   │ <-- Run on Linux ARM
+# │    Versions      │     Validates semver in each project
+# │                  │     for each commit in sequence
+# └────────┬─────────┘
+#          │
+#          ▼
+# ┌──────────────────┐
+# │                  │
 # │  Lint Projects   │ <-- Run on Linux ARM
 # │                  │     Each commit is checked out and
 # │                  │     all projects are linted
@@ -127,10 +135,74 @@ jobs:
             echo ""
           done
 
+  # Semantic version validation job
+  lint-semantic-versions:
+    name: Lint Semantic Versions
+    needs: lint-commit-messages
+    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build recurse.nix script with project-lint-semver step only
+        run: |
+          # Get nixpkgs directly from flake inputs
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]'
+
+      - name: Lint semantic versions for each commit
+        run: |
+          # Exit at first failure
+          set -e
+
+          # we have to lint semantic versions at EVERY commit in a push
+          # to ensure that projects that were DELETED between base and
+          # HEAD have valid semantic versions
+
+          # Get all commits from GitHub event
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[].id')
+
+          # Handle empty pushes
+          if [[ -z "$COMMITS" ]]; then
+            echo "No commits to validate"
+            exit 0
+          fi
+
+          # Loop through each commit
+          for commit in $COMMITS; do
+            echo "============================================================"
+            echo "🔍 Linting semantic versions: $commit"
+            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+            echo "📅 Date: $(git log -1 --pretty=%ad --date=iso $commit)"
+            echo "🧑‍💻 Author: $(git log -1 --pretty=%an $commit)"
+            echo "============================================================"
+
+            # Check out this specific commit
+            git checkout -q $commit
+
+            # Run the recurse script which will lint semantic versions
+            echo "🔍 Running semantic version validation on projects..."
+            temp_stderr=$(mktemp)
+            ./result/bin/recurse 2>"$temp_stderr"
+            exit_code=$?
+            while IFS= read -r line; do
+              echo "        $line" >&2
+            done < "$temp_stderr"
+            rm "$temp_stderr"
+            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
+
+            echo "✅ Commit $commit passed semantic version validation"
+            echo ""
+          done
+
+          # Return to the original branch/commit
+          git checkout -q ${{ github.sha }}
+
   # Lint job - only needs to run on one platform since it's not platform-specific
   lint-projects:
     name: Lint Projects
-    needs: lint-commit-messages
+    needs: lint-semantic-versions
     runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
     permissions:
       id-token: "write"
