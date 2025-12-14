@@ -5,7 +5,7 @@
 # ignore the root of the monorepo, when running this command, because root flake.nix also calls this command
 {
   pkgs ? import <nixpkgs> {},
-  steps ? ["project-lint" "project-build" "project-test"],
+  steps ? ["project-lint" "project-lint-semver" "project-build" "project-test"],
   ignoreUnchanged ? true,
   cleanup ? false,
 }: let
@@ -15,6 +15,7 @@
       "project-lint"
       "project-build"
       "project-test"
+      "project-lint-semver"
     ])
   steps;
   msg =
@@ -26,6 +27,8 @@
             then "testing"
             else if step == "project-lint"
             then "linting"
+            else if step == "project-lint-semver"
+            then "linting semantic version of"
             else "building"
         )
         validSteps)

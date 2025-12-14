@@ -142,6 +142,99 @@
           else throw "devShellConfig ${name} missing project-lint"
         )
         // (
+          if builtins.hasAttr "project-lint-semver" packages
+          then {
+            # wraps project-lint-semver script, which checks to make sure
+            # that the project's semantic version does not decrease from
+            # one commit to the next
+            #
+            # this script always runs from the HEAD of the current git tree
+            # all the way back to the very first commit
+            project-lint-semver = pkgs.writeShellApplication {
+              name = "project-lint-semver";
+              meta = packages.project-lint-semver.meta;
+              runtimeInputs = [pkgs.git pkgs.glow packages.project-lint-semver];
+              text = ''
+                ERR_BAD_SEMVER=""
+                declare -a commit_lines=()
+
+                MAJOR=""
+                MINOR=""
+                PATCH=""
+
+                function check_semver(){
+                    local major
+                    local minor
+                    local patch
+                    local sv
+
+                    sv="''$1"
+
+                    if [[ "''$sv" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        IFS='.' read -r major minor patch <<< "''$sv"
+                    else
+                        echo "invalid semantic version ''$sv" >&2
+                        return 1
+                    fi
+
+                    if [ -z "''$MAJOR" ]; then
+                        MAJOR="''$major"
+                        MINOR="''$minor"
+                        PATCH="''$patch"
+                    elif [ "''$MAJOR" -lt "''$major" ]; then
+                        ERR_BAD_SEMVER="semantic version major component increased from ''$MAJOR to ''$major"
+                        return 1
+                    elif [ "''$MAJOR" -gt "''$major" ]; then
+                        MAJOR="''$major"
+                        MINOR="''$minor"
+                        PATCH="''$patch"
+                    elif [ "''$MINOR" -lt "''$minor" ]; then
+                        ERR_BAD_SEMVER="semantic version minor component increased from ''$MINOR to ''$minor"
+                        return 1
+                    elif [ "''$MINOR" -gt "''$minor" ]; then
+                        MINOR="''$minor"
+                        PATCH="''$patch"
+                    elif [ "''$PATCH" -lt "''$patch" ]; then
+                        ERR_BAD_SEMVER="semantic version patch component increased from ''$PATCH to ''$patch"
+                        return 1
+                    elif [ "''$PATCH" -gt "''$patch" ]; then
+                        PATCH="''$patch"
+                    fi
+
+                    return 0
+                }
+
+                while IFS= read -r sha; do
+                    semver="$(project-lint-semver "$sha")"
+                    commit_msg="$(git log -1 --pretty=%s "$sha")"
+                    commit_lines+=("| ''${semver} | ''${sha} | ''${commit_msg} |")
+
+                    if ! check_semver "''$semver"; then
+                        break
+                    fi
+
+                done < <(git rev-list HEAD -- .)
+
+                # Join array into single string
+                COMMITS=$(printf '%s\n' "''${commit_lines[@]}")
+
+                glow <<- EOF >&2
+                | version | commit | message |
+                |:--------|:-------|:--------|
+                ''${COMMITS}
+                EOF
+
+                if [ -n "''$ERR_BAD_SEMVER" ]; then
+                    echo "^^^^" >&2
+                    echo "''$ERR_BAD_SEMVER" >&2
+                    exit 1
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-lint-semver"
+        )
+        // (
           if builtins.hasAttr "project-build" packages
           then {
             # wraps the project build script.
@@ -295,7 +388,7 @@
               text = ''
                 recurse
               '';
-            }) ["project-lint" "project-build" "project-test"];
+            }) ["project-lint" "project-lint-semver" "project-build" "project-test"];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {

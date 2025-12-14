@@ -49,6 +49,46 @@
             fi
           '';
         })
+      (pkgs.writeShellApplication {
+        name = "project-lint-semver";
+        meta = {
+          description = "ensure the semantic version of a nix flake increases over time";
+          runtimeInputs = with pkgs; [
+            git
+          ];
+        };
+        text = ''
+          SHA="''${1:-}"
+          FIRST_LINE=""
+          PARSED_SEMVER="0.0.0"
+
+          function parse_semver() {
+            if [[ "$FIRST_LINE" =~ ^#[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+              PARSED_SEMVER="''${BASH_REMATCH[1]}"
+            fi
+          }
+
+          # Get relative path from git root to current directory
+          RELATIVE_PATH=$(git rev-parse --show-prefix)
+          FLAKE_PATH="''${RELATIVE_PATH}flake.nix"
+
+          if [ -n "$SHA" ]; then
+            # Get first line of flake.nix at specific SHA without changing working directory
+            if git cat-file -e "$SHA:$FLAKE_PATH" 2>/dev/null; then
+              FIRST_LINE=$(git show "$SHA:$FLAKE_PATH" | head -n1)
+            else
+              echo "No flake.nix found at SHA $SHA, using $PARSED_SEMVER" >&2
+              FIRST_LINE=""
+            fi
+          else
+            FIRST_LINE=$(head -n1 flake.nix 2>/dev/null || echo "")
+          fi
+
+          parse_semver
+
+          echo "$PARSED_SEMVER"
+        '';
+      })
       (pkgs.writeShellApplication
         {
           name = "project-build";

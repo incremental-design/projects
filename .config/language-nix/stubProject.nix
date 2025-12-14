@@ -24,6 +24,11 @@ pkgs.writeShellApplication {
 
     # make a flake.nix
     cat <<-EOT > "$PROJECT_DIR/flake.nix"
+    # 0.0.0
+    # DO NOT REMOVE THE PRECEDING LINE.
+    # To bump the semantic version and trigger
+    # an auto-release when this project is merged
+    # to main, increment the semantic version
     {
       description = "build and test for $PROJECT";
 
