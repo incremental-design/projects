@@ -30,6 +30,14 @@ name: Validate Commits on Push
 #          ▼
 # ┌──────────────────┐
 # │                  │
+# │  Lint Semantic   │ <-- Run on Linux ARM
+# │    Versions      │     Validates semver in each project
+# │                  │     for each commit in sequence
+# └────────┬─────────┘
+#          │
+#          ▼
+# ┌──────────────────┐
+# │                  │
 # │  Lint Projects   │ <-- Run on Linux ARM
 # │                  │     Each commit is checked out and
 # │                  │     all projects are linted
@@ -133,10 +141,48 @@ jobs:
             echo ""
           done
 
+  # Semantic version validation job
+  lint-semantic-versions:
+    name: Lint Semantic Versions
+    needs: lint-commit-messages
+    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
+    steps:
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build recurse.nix script with project-lint-semver step only
+        run: |
+          # Get nixpkgs directly from flake inputs
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]' --arg ignoreUnchanged 'false'
+
+      - name: Lint semantic versions
+        run: |
+          # Exit at first failure
+          set -e
+
+          echo "============================================================"
+          echo "🔍 Validating semantic versions for all projects at HEAD"
+          echo "============================================================"
+
+          # Run the recurse script which will lint semantic versions for all projects
+          echo "🔍 Running semantic version validation on all projects..."
+          ./result/bin/recurse
+
+          echo "✅ All projects passed semantic version validation"
+
   # Lint job - only needs to run on one platform since it's not platform-specific
   lint-projects:
     name: Lint Projects
-    needs: lint-commit-messages
+    needs: lint-semantic-versions
     runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
     permissions:
       id-token: "write"
