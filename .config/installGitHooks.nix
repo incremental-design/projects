@@ -1,11 +1,16 @@
 {pkgs ? import <nixpkgs> {}, ...}: let
   lintCommit = import ./lintCommit.nix {inherit pkgs;};
   commitMsg = "${lintCommit}/bin/lintCommit";
-  prePush = "${(import ./recurse.nix {
-    inherit pkgs;
-    steps = ["project-lint" "project-build" "project-test"];
-  })}/bin/recurse";
-
+  prePush = "${pkgs.writeShellApplication {
+    name = "prePush";
+    text = ''
+        # lint, lint-semver, build, test EVERYTHING before pushing
+      "${(import ./recurse.nix {
+        inherit pkgs;
+        steps = ["project-lint" "project-lint-semver" "project-build" "project-test"];
+      })}/bin/recurse" false;
+    '';
+  }}/bin/prePush";
   # Create the installer script
   project-install-git-hooks = pkgs.writeShellApplication {
     name = "project-install-git-hooks";
