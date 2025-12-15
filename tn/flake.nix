@@ -1,4 +1,4 @@
-# 0.0.2
+# 0.0.1
 # DO NOT REMOVE THE PRECEDING LINE.
 # To bump the semantic version and trigger
 # an auto-release when this project is merged
