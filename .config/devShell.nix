@@ -151,6 +151,208 @@
           else throw "devShellConfig ${name} missing project-lint"
         )
         // (
+          if builtins.hasAttr "project-lint-semver" packages
+          then {
+            # wraps project-lint-semver script, which checks to make sure
+            # that the project's semantic version does not decrease from
+            # one commit to the next
+            #
+            # this script always prints the semantic version of each commit
+            # in the project to stderr e.g.
+            #
+            #  version │ commit                        │ message
+            # ─────────┼───────────────────────────────┼────────────────────────────────
+            #  0.0.0   │ 3b11f0b5ded8867c30e016b937e3e │ chore: add project-lint-semver
+            #          │ 9bf1a3afb63                   │ command
+            #  0.0.0   │ 46ac2a2488b8b72c49673e51a17d6 │ chore: set up recursive lint,
+            #          │ 4a27b89c00d                   │ build, test
+            #  0.0.0   │ 1822aac4b623ef53fb087b88ee084 │ chore: make project-stub-nix
+            #          │ 46121b1cd6d                   │ command
+            #  0.0.0   │ 31570c596591824dceed4192a3106 │ chore: set up zed
+            #          │ 1f0317d3e6d                   │ configuration
+            # ...
+            #
+            # if the semantic version was bumped at HEAD, then this script
+            # prints the tag of the project i.e.
+            #
+            # path/to/project/vMAJOR.MINOR.PATCH
+            #
+            project-lint-semver = pkgs.writeShellApplication {
+              name = "project-lint-semver";
+              meta = packages.project-lint-semver.meta;
+              runtimeInputs = [pkgs.git pkgs.glow packages.project-lint-semver];
+              text = ''
+                # this script ALWAYS checks from HEAD commit
+                # all the way back to the base commit for the
+                # project
+
+                SEMVER_LATEST=""
+                BUMPED=0
+
+                # $1 is semver
+                # return 0 if valid, 1 if invalid
+                # echoes $1 back if valid
+                function valid_semver(){
+                    if [[ ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        return 1
+                    fi
+                    echo "$1"
+                }
+
+                # $1 and $2 are semvers to compare
+                # returns 1 and echoes err msg if $1, $2 or both are invalid
+                # echo -1 if $1 less than $2
+                # echo 0 if $1 equal to $2
+                # echo 1 if $1 greater than $2
+                function compare_semver(){
+
+                    local left=()
+                    local right=()
+
+                    if ! IFS="." read -ra left <<< "$(valid_semver "$1")" ; then
+                        echo "error: \"$1\" is not a valid semantic version"
+                        return 1
+                    fi
+
+                    if ! IFS="." read -ra right <<< "$(valid_semver "$2")" ; then
+                        echo "error: \"$2\" is not a valid semantic version"
+                        return 1
+                    fi
+
+                    if (( left[0] < right[0] )); then
+                        echo -1
+                        return 0
+                    fi
+
+                    if (( left[0] > right[0] )); then
+                        echo 1
+                        return 0
+                    fi
+
+                    if (( left[1] < right[1] )); then
+                        echo -1
+                        return 0
+                    fi
+
+                    if (( left[1] > right[1] )); then
+                        echo 1
+                        return 0
+                    fi
+
+                    if (( left[2] < right[2] )); then
+                        echo -1
+                        return 0
+                    fi
+
+                    if (( left[2] > right[2] )); then
+                        echo 1
+                        return 0
+                    fi
+
+                    echo 0
+                    return 0
+                }
+
+                function get_semver(){
+                  local sha="''${1:-}"
+                  local sv
+
+                  if [ -z "$sha" ]; then
+                    echo "expected a commit hash, received \"\""
+                    return 1
+                  fi
+
+                  if ! sv=$(project-lint-semver "$sha"); then
+                    echo "$sv"
+                    return 1
+                  fi
+
+                  echo "$sv"
+                }
+
+                commits=()
+                ERR_SV=""
+                SV_PREV=""
+
+                while IFS= read -r sha; do
+                    if ! SV=$(get_semver "$sha"); then
+                        ERR_SV="$SV"
+                        break
+                    fi
+
+                    if [ -n "$SV_PREV" ]; then
+                        BUMPED=$(compare_semver "$SV_PREV" "$SV")
+
+                        if (( BUMPED < 0 )); then
+                            ERR_SV="semantic version out of order: ''${SV_PREV} less than ''${SV}"
+                            break
+                        fi
+                    fi
+
+                    SV_PREV="$SV"
+
+                    commits+=("$SV_PREV")
+                    commits+=("$sha")
+                    commits+=("$(git log -1 --pretty=%s "''$sha")")
+
+                done < <(git rev-list HEAD -- .)
+
+                SEMVER_LATEST="''${commits[0]}"
+
+                if (( ''${#commits[@]} < 4 )); then
+                    # only ONE commit, bumped must be 0
+                    BUMPED=0
+                fi
+
+                # Loop through commits array in groups of 3
+                #
+                # Array structure:
+                # ┌─────────┬─────┬─────┬─────────┬─────┬─────┬─────────┬─────┬─────┐
+                # │ semver1 │sha1 │msg1 │ semver2 │sha2 │msg2 │ semver3 │sha3 │msg3 │
+                # └─────────┴─────┴─────┴─────────┴─────┴─────┴─────────┴─────┴─────┘
+                #     [0]    [1]   [2]     [3]    [4]   [5]     [6]    [7]   [8]
+                #
+                # Loop iterations:
+                # i=0: semver="''${commits [0]}", sha="''${commits [1]}", msg="''${commits [2]}"
+                # i=3: semver="''${commits [3]}", sha="''${commits [4]}", msg="''${commits [5]}"
+                # i=6: semver="''${commits [6]}", sha="''${commits [7]}", msg="''${commits [8]}"
+
+                COMMITS_TABLE=""
+
+                # Loop through commits array in groups of 3
+                for (( i = 0; i < ''${#commits[@]}; i += 3 )); do
+                    semver="''${commits[i]}"
+                    sha="''${commits[i+1]}"
+                    msg="''${commits[i+2]}"
+
+                    # Format each row as markdown table
+                    COMMITS_TABLE+="| $semver | $sha | $msg |"$'\n'
+                done
+
+                glow <<- EOF >&2
+                | version | commit | message |
+                |:--------|:-------|:--------|
+                $COMMITS_TABLE
+                EOF
+
+                if [ -n "$ERR_SV" ]; then
+                    echo "^^^^" >&2
+                    echo "$ERR_SV" >&2
+                fi
+
+                if (( BUMPED > 0 )); then
+                    echo "$(git rev-parse --show-prefix)''${SEMVER_LATEST}"
+                fi
+
+                if [ -n "$ERR_SV" ]; then
+                    exit 1
+                fi
+              '';
+            };
+          }
+          else throw "devShellConfig ${name} missing project-lint-semver"
+        )
+        // (
           if builtins.hasAttr "project-build" packages
           then {
             # wraps the project build script.
@@ -289,7 +491,7 @@
                 IGNORE_UNCHANGED="''${1:-"true"}"
                 recurse "$IGNORE_UNCHANGED"
               '';
-            }) ["project-lint" "project-build" "project-test"];
+            }) ["project-lint" "project-lint-semver" "project-build" "project-test"];
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {
