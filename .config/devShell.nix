@@ -145,10 +145,12 @@
     ))
     // {
       default = let
-        p = [
-          (import ./configVscode.nix {inherit pkgs;})
-          (import ./configZed.nix {inherit pkgs;})
-        ];
+        p =
+          [
+            (import ./configVscode.nix {inherit pkgs;})
+            (import ./configZed.nix {inherit pkgs;})
+          ]
+          ++ (import ./stubProject.nix {inherit pkgs;});
         commandDescriptions = writeCommandDescriptions p;
       in
         pkgs.mkShell {
@@ -234,6 +236,35 @@ in {
 # To use a development shell, you can run nix develop ./#<language>
 # e.g. `nix develop ./#nix` to load the `language-nix` dev shell or
 # `nix develop ./#go` to load the `language-go` dev shell
+#
+# When you stub a project, using one of the project-stub-*
+# commands, the new project includes an .envrc file that
+# loads the project's language's dev shell
+# i.e.
+#
+#                            ,---._____
+# stub-project-nix   ---->   | project |           _________
+#                            |         +------->  / .envrc  |
+#                            '_________'          |         |
+#                                                 | use     |
+#                                                 | ../#nix |
+#                                                 |_________|
+#
+#                            ,---._____
+# stub-project-go   ---->    | project |           _________
+#                            |         +------->  / .envrc  |
+#                            '_________'          |         |
+#                                                 | use     |
+#                                                 | ../#go  |
+#                                                 |_________|
+#
+#                            ,---._____
+# stub-project-     ---->    | project |           _________
+# typescript                 |         +------->  / .envrc  |
+#                            '_________'          |         |
+#                                                 | use     |
+#                                                 | ../#typescript
+#                                                 |_________|
 #
 # WHY DEV SHELLS
 #
@@ -321,7 +352,7 @@ in {
 # in
 #   devShellConfig
 #
-# this devShell.nix composes the contents of the language-specific dev-shell.nix:
+# this devShell.nix composes the contents of the language-specific devShell.nix:
 #       ________________________               ________________________
 #      / devShell.nix           |             / language-*             |
 #     /                         |            /  devShell.nix           |
