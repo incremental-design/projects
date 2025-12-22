@@ -9,7 +9,7 @@ name: Tag Main
 
 on:
   push:
-    branches: [main]
+    branches: [main-temp]
 
 jobs:
   tag-main:
@@ -98,7 +98,7 @@ jobs:
             echo "============================================================"
 
             # Get merge base and commit range
-            MERGE_BASE=$(git merge-base origin/main HEAD)
+            MERGE_BASE=$(git merge-base origin/main-temp HEAD)
             echo "📍 Merge base: $MERGE_BASE"
 
             # Get all commits from merge base to HEAD
