@@ -1,0 +1,10 @@
+# ignore all
+*
+
+# and then whitelist what you want to track
+!.gitignore
+!CONTRIBUTE.md
+!flake.lock
+!flake.nix
+!README.md
+!.envrc
