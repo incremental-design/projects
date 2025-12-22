@@ -1,0 +1,176 @@
+name: Tag Main
+
+# Tag Main Pipeline Flow:
+#
+# This workflow iterates through commits from
+# merge base to HEAD. for each commit, it detects
+# projects that have a semver bump, collects all tags,
+# then creates and pushes them atomically.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag-main:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.collect-tags.outputs.tags }}
+    steps:
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Build recurse.nix script with no steps
+        run: |
+          # Get nixpkgs directly from flake inputs
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '[]'
+
+      - name: Collect tags and create them atomically
+        id: collect-tags
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          nix-shell -p direnv --run '
+            # Exit at first failure
+            set -e
+
+            # Function to check if a project should be released
+            should_release() {
+              local directory="$1"
+
+              if [ ! -d "$directory" ]; then
+                echo "❌ expected a directory, received \"$directory\"" >&2
+                return 1
+              fi
+
+              cd "$directory"
+              direnv allow
+
+              # Read from lint-semver output with null-byte delimiter
+              local semver
+              local bump_flag
+              while IFS=$'\0' read -r semver bump_flag; do
+                # We only have one set of values, so break after first iteration
+                break
+              done < <(direnv exec ./ lint-semver "false" "HEAD")
+
+              if [ -z "$semver" ] || [ -z "$bump_flag" ]; then
+                echo "❌ Failed to parse lint-semver output for $directory" >&2
+                return 1
+              fi
+
+              if (( bump_flag <= 0 )) || [ "$semver" = "0.0.0" ]; then
+                return 0
+              fi
+
+              # calculate tag
+              local project_name=$(git rev-parse --prefix)
+              local tag_name="${project_name}/v${semver}"
+
+              # Output tag name
+              echo "$tag_name"
+
+              return 0
+            }
+
+            echo "============================================================"
+            echo "🔍 Processing projects from merge base to HEAD: ${{ github.sha }}"
+            echo "============================================================"
+
+            # Get the commit before this push to compare against
+            MERGE_BASE=${{ github.event.before }}
+            echo "📍 Merge base: $MERGE_BASE"
+
+            # Get all commits from merge base to HEAD
+            COMMITS=$(git rev-list --reverse $MERGE_BASE..HEAD)
+
+            # Handle empty commit range
+            if [[ -z "$COMMITS" ]]; then
+              echo "ℹ️ No commits to process between merge base and HEAD"
+              exit 0
+            fi
+
+            # Array to collect all tags to create
+            declare -a TAGS_TO_CREATE=()
+
+            # Loop through each commit
+            for commit in $COMMITS; do
+              echo "============================================================"
+              echo "🔍 Processing commit: $commit"
+              echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+              echo "📅 Date: $(git log -1 --pretty=%ad --date=iso $commit)"
+              echo "🧑‍💻 Author: $(git log -1 --pretty=%an $commit)"
+              echo "============================================================"
+
+              # Check out this specific commit
+              git checkout -q $commit
+
+              # Ensure we have full git history
+              git fetch --unshallow 2>/dev/null || echo "Already have full history"
+
+              # Run recurse and process directories
+              echo "🏃 Running recurse for commit $commit..."
+              while IFS= read -r -d $'\0' directory; do
+                if [ -n "$directory" ] && [ -d "$directory" ]; then
+                  echo "📁 Processing directory: $directory"
+
+                  # Check if this project should be released
+                  if tag_name=$(should_release "$directory"); then
+                    if tag_output=$(git tag "$tag_name" "$commit" 2>&1); then
+                      TAGS_TO_CREATE+=("$tag_name")
+                      echo "  📌 Collected tag: $tag_name"
+                    else
+                      # If tag creation failed, check if it already exists (idempotent)
+                      if git rev-parse "$tag_name" &>/dev/null; then
+                        echo "  ℹ️  Tag already exists: $tag_name"
+                      else
+                        echo "  ❌ Failed to create tag $tag_name: $tag_output" >&2
+                        exit 1
+                      fi
+                    fi
+                  fi
+                fi
+              done < <(./result/bin/recurse false 2>/dev/null)
+
+              echo "✅ Commit $commit processed successfully"
+              echo ""
+            done
+
+            # Return to the original branch/commit
+            git checkout -q ${{ github.sha }}
+
+            # Clean up nix result
+            if [ -L result ]; then
+              unlink result
+            fi
+
+            # Push all tags at once if any were collected
+            if [ ${#TAGS_TO_CREATE[@]} -gt 0 ]; then
+              echo "============================================================"
+              echo "📤 Pushing all tags to origin..."
+              echo "============================================================"
+
+              git push origin "${TAGS_TO_CREATE[@]}"
+              echo "✅ All tags pushed successfully"
+            else
+              echo "ℹ️ No tags to create"
+            fi
+
+            echo "✅ All tags processed successfully"
+          '
