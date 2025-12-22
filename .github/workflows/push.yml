@@ -1,0 +1,289 @@
+# Validate each commit in a push to ensure every commit maintains a working state
+# across all supported platforms
+
+name: Validate Commits on Push
+
+# CI Pipeline Flow:
+#
+# This workflow validates each commit from base to head individually
+# to ensure each commit maintains a working state:
+#
+# ┌──────────────────────────────────────────────────────────┐
+# │ Per-Commit Sequential Validation                         │
+# │                                                          │
+# │  For each commit C1...CN:                                │
+# │  ┌─────────────────┐   ┌─────────────────┐   ┌────────┐  │
+# │  │   git checkout  │   │  Run validation │   │  Next  │  │
+# │  │    commit Ci    ├──►│     step(s)     ├──►│ commit │  │
+# │  └─────────────────┘   └─────────────────┘   └────────┘  │
+# └──────────────────────────────────────────────────────────┘
+#
+# Workflow Steps:
+#
+# ┌──────────────────┐
+# │                  │
+# │  Lint Commits    │ <-- Run on Linux ARM
+# │    Messages      │     Validates commit message format
+# │                  │     for each commit in sequence
+# └────────┬─────────┘
+#          │
+#          ▼
+# ┌──────────────────┐
+# │                  │
+# │  Lint Projects   │ <-- Run on Linux ARM
+# │                  │     Each commit is checked out and
+# │                  │     all projects are linted
+# └────────┬─────────┘
+#          │
+#          ▼
+#          │     Build & Test (parallel across platforms)
+#          │    ┌───────────────────────────────────────────────┐
+#          │    │  Each commit is checked out and validated     │
+#          │    │  on every platform in parallel                │
+#          │    │                                               │
+#          │    │  ┌─────────────────┐                          │
+#          │    │  │ macOS ARM64     │                          │
+#          │    │  │ ┌─────────────┐ │                          │
+#          │    │  │ │    Build    │ │                          │
+#          └────┼─►│ │    Test     │ │                          │
+#               │  │ └─────────────┘ │                          │
+#               │  └─────────────────┘                          │
+#               │                                               │
+#               │  ┌─────────────────┐   ┌─────────────────┐    │
+#               │  │ Linux ARM64     │   │ Linux x86_64    │    │
+#               │  │ ┌─────────────┐ │   │ ┌─────────────┐ │    │
+#               │  │ │    Build    │ │   │ │    Build    │ │    │
+#               │  │ │    Test     │ │   │ │    Test     │ │    │
+#               │  │ └─────────────┘ │   │ └─────────────┘ │    │
+#               │  └─────────────────┘   └─────────────────┘    │
+#               │                                               │
+#               └──────────────────────┬────────────────────────┘
+#                                      │
+#                                      │
+#                                      ▼
+#                             ┌──────────────────┐
+#                             │                  │
+#                             │  Summary Report  │
+#                             │                  │
+#                             └──────────────────┘
+
+on:
+  push:
+    branches:
+      - "**" # Run on all branches
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # First job: Gather the commits that need validation
+  lint-commit-messages:
+    name: Lint Commit Messages
+    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build lintCommit from Nix
+        run: |
+          # Build the lintCommit tool from the Nix expression
+          nix-build .config/lintCommit.nix
+
+      - name: Lint Commit Messages
+        id: lint-commit-messages
+        run: |
+          # Exit at first failure
+          set -e
+
+          # Get all commits from GitHub event
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[].id')
+
+          # Handle empty pushes
+          if [[ -z "$COMMITS" ]]; then
+            echo "No commits to validate"
+            exit 0
+          fi
+
+          # Format for logging
+          COMMITS_JSON=$(echo "$COMMITS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "Found commits to validate: $COMMITS_JSON"
+
+          # Loop through each commit
+          for commit in $COMMITS; do
+            echo "============================================================"
+            echo "🔍 Validating commit: $commit"
+            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+            echo "============================================================"
+
+            # Get commit message and validate it using lintCommit
+            git log -1 --pretty=%B "$commit" > commit_message.txt
+            ./result/bin/lintCommit commit_message.txt
+
+            echo "✅ Commit $commit passed validation"
+            echo ""
+          done
+
+  # Lint job - only needs to run on one platform since it's not platform-specific
+  lint-projects:
+    name: Lint Projects
+    needs: lint-commit-messages
+    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build recurse.nix script with project-lint step only
+        run: |
+          # Get nixpkgs directly from flake inputs
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint"]'
+
+      - name: Lint each commit
+        run: |
+          # Exit at first failure
+          set -e
+
+          # Get all commits from GitHub event
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[].id')
+
+          # Handle empty pushes
+          if [[ -z "$COMMITS" ]]; then
+            echo "No commits to validate"
+            exit 0
+          fi
+
+          # Loop through each commit
+          for commit in $COMMITS; do
+            echo "============================================================"
+            echo "🔍 Linting commit: $commit"
+            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+            echo "📅 Date: $(git log -1 --pretty=%ad --date=iso $commit)"
+            echo "🧑‍💻 Author: $(git log -1 --pretty=%an $commit)"
+            echo "============================================================"
+
+            # Check out this specific commit
+            git checkout -q $commit
+
+            # Run the recurse script which will lint
+            echo "🔍 Running lint on projects..."
+            temp_stderr=$(mktemp)
+            ./result/bin/recurse 2>"$temp_stderr"
+            exit_code=$?
+            while IFS= read -r line; do
+              echo "        $line" >&2
+            done < "$temp_stderr"
+            rm "$temp_stderr"
+            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
+
+            echo "✅ Commit $commit passed project linting"
+            echo ""
+          done
+
+          # Return to the original branch/commit
+          git checkout -q ${{ github.sha }}
+
+  # Build and test job - needs to run on all platforms
+  build-test:
+    name: Build & test on ${{ matrix.os-name }} (${{ matrix.platform }})
+    needs: lint-projects
+
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            os-name: macOS
+            platform: aarch64-darwin
+          - os: ubuntu-22.04
+            os-name: Linux
+            platform: x86_64-linux
+          - os: ubuntu-22.04-arm
+            os-name: Linux
+            platform: aarch64-linux
+
+      # Don't cancel other platform runs if one fails
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build recurse.nix script with project-build and project-test steps
+        run: |
+          # Get nixpkgs directly from flake inputs
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-build" "project-test"]'
+
+      - name: Build and test each commit
+        run: |
+          # Exit at first failure
+          set -e
+
+          # Get all commits from GitHub event
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[].id')
+
+          # Handle empty pushes
+          if [[ -z "$COMMITS" ]]; then
+            echo "No commits to validate"
+            exit 0
+          fi
+
+          # Loop through each commit
+          for commit in $COMMITS; do
+            echo "============================================================"
+            echo "🔍 Validating commit: $commit on ${{ matrix.os-name }} (${{ matrix.platform }})"
+            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+            echo "📅 Date: $(git log -1 --pretty=%ad --date=iso $commit)"
+            echo "🧑‍💻 Author: $(git log -1 --pretty=%an $commit)"
+            echo "============================================================"
+
+            # Check out this specific commit
+            git checkout -q $commit
+
+            # Run the recurse script which will build and test
+            echo "🏗️ Running build and test on ${{ matrix.platform }}..."
+            temp_stderr=$(mktemp)
+            ./result/bin/recurse 2>"$temp_stderr"
+            exit_code=$?
+            while IFS= read -r line; do
+              echo "        $line" >&2
+            done < "$temp_stderr"
+            rm "$temp_stderr"
+            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
+
+            echo "✅ Commit $commit passed build and test on ${{ matrix.os-name }} (${{ matrix.platform }})"
+            echo ""
+          done
+
+          # Return to the original branch/commit
+          git checkout -q ${{ github.sha }}
