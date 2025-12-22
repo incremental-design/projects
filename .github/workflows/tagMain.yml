@@ -1,0 +1,109 @@
+name: Tag Main
+
+# Tag Main Pipeline Flow:
+#
+# This workflow iterates through commits from
+# merge base to HEAD. For each commit, it runs recurse
+# which outputs tags that should be created, then
+# creates and pushes them atomically.
+
+on:
+  push:
+    branches: [main-temp]
+
+jobs:
+  tag-main:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.collect-tags.outputs.tags }}
+    steps:
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Build recurse.nix script
+        run: |
+          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]'
+
+      - name: Collect and push tags
+        id: collect-tags
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -e
+
+          echo "============================================================"
+          echo "🔍 Processing commits from merge base to HEAD"
+          echo "============================================================"
+
+          MERGE_BASE=${{ github.event.before }}
+          COMMITS=$(git rev-list --reverse $MERGE_BASE..HEAD)
+
+          if [[ -z "$COMMITS" ]]; then
+            echo "ℹ️ No commits to process"
+            exit 0
+          fi
+
+          declare -a TAGS_TO_CREATE=()
+
+          for commit in $COMMITS; do
+            echo "============================================================"
+            echo "🔍 Processing commit: $commit"
+            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
+            echo "============================================================"
+
+            git checkout -q $commit
+
+            echo "🏃 Running recurse for commit $commit..."
+
+            # recurse outputs tags (one per line)
+            while IFS= read -r tag; do
+              if [ -n "$tag" ]; then
+                if git tag "$tag" "$commit" 2>&1; then
+                  TAGS_TO_CREATE+=("$tag")
+                  echo "  📌 Collected tag: $tag"
+                else
+                  if git rev-parse "$tag" &>/dev/null; then
+                    echo "  ℹ️  Tag already exists: $tag"
+                  else
+                    echo "  ❌ Failed to create tag: $tag" >&2
+                    exit 1
+                  fi
+                fi
+              fi
+            done < <(./result/bin/recurse)
+
+            echo "✅ Commit $commit processed"
+            echo ""
+          done
+
+          git checkout -q ${{ github.sha }}
+
+          if [ -L result ]; then
+            unlink result
+          fi
+
+          if [ ${#TAGS_TO_CREATE[@]} -gt 0 ]; then
+            echo "============================================================"
+            echo "📤 Pushing ${#TAGS_TO_CREATE[@]} tags..."
+            echo "============================================================"
+            git push origin "${TAGS_TO_CREATE[@]}"
+            echo "✅ All tags pushed"
+          else
+            echo "ℹ️ No tags to create"
+          fi
