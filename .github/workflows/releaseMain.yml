@@ -1,0 +1,61 @@
+name: Release Main
+
+# Release Main Pipeline Flow:
+#
+# This workflow is triggered when tags are pushed to main.
+# It creates GitHub releases for each tag that matches the
+# pattern */v* (e.g., frontend/v1.2.3, backend/v2.1.0)
+
+on:
+  push:
+    tags:
+      - "*/v*"
+
+jobs:
+  release-main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract tag name from git ref
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          echo "============================================================"
+          echo "🚀 Creating GitHub release for tag: $TAG_NAME"
+          echo "============================================================"
+
+          # Get the commit message as release notes
+          RELEASE_NOTES=$(git log -1 --pretty=%B "$TAG_NAME")
+
+          # Extract project name and version from tag
+          # Tag format: path/to/project/vMAJOR.MINOR.PATCH
+          PROJECT_NAME="${TAG_NAME%/v*}"
+          VERSION="${TAG_NAME##*/v}"
+
+          echo "📦 Project: $PROJECT_NAME"
+          echo "📌 Version: $VERSION"
+          echo "📝 Release notes:"
+          echo "$RELEASE_NOTES"
+          echo ""
+
+          # Create the GitHub release
+          if gh release create "$TAG_NAME" \
+            --title "Release: $PROJECT_NAME v$VERSION" \
+            --notes "$RELEASE_NOTES"; then
+            echo "✅ GitHub release created successfully: $TAG_NAME"
+          else
+            # If creation failed, check if release already exists
+            if gh release view "$TAG_NAME" &>/dev/null; then
+              echo "ℹ️ GitHub release already exists: $TAG_NAME"
+              exit 0
+            else
+              echo "❌ Failed to create GitHub release: $TAG_NAME"
+              exit 1
+            fi
+          fi
