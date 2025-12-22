@@ -10,3 +10,5 @@
 !flake.lock
 !LICENSE
 !README.md
+!tn
+!tn/**
