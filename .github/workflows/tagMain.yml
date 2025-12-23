@@ -48,7 +48,7 @@ jobs:
         run: |
           nix-shell -p direnv --run '
             # Exit at first failure
-            set -e
+            set -ex
 
             # Function to check if a project should be released
             should_release() {
