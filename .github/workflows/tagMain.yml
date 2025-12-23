@@ -29,21 +29,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate GitHub App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       - name: Build recurse.nix script
         run: |
           nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]'
 
       - name: Collect and push tags
         id: collect-tags
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -e
 
@@ -103,9 +94,20 @@ jobs:
             echo "📤 Pushing ${#TAGS_TO_CREATE[@]} tags..."
             echo "============================================================"
 
+            # Set up SSH with app private key
+            mkdir -p ~/.ssh
+            echo "${{ secrets.APP_PRIVATE_KEY }}" > ~/.ssh/app_key
+            chmod 600 ~/.ssh/app_key
+
+            cat >> ~/.ssh/config <<EOF
+          Host github.com
+            IdentityFile ~/.ssh/app_key
+            StrictHostKeyChecking no
+          EOF
+
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            git remote set-url origin "git@github.com:${{ github.repository }}.git"
 
             for tag in "${TAGS_TO_CREATE[@]}"; do
               echo "Pushing tag: $tag"
