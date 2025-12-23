@@ -1,0 +1,17 @@
+# CODEOWNERS file for repository-wide admin ownership
+#
+# This file defines who owns and is responsible for code in this repository.
+# Repository admins are assigned as owners of all files to ensure proper
+# oversight and approval for all changes.
+
+# Global ownership - all files require admin approval
+* @designbyajay
+
+# You can also specify multiple admins if needed:
+# * @admin @another-admin @third-admin
+
+# Alternative: If you're using GitHub teams instead of individual users:
+# * @your-org/admin-team
+
+# Note: Replace @admin with actual GitHub username(s) or team name(s)
+# Users/teams listed here must have write permissions to the repository
