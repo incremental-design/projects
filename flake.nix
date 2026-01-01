@@ -1023,7 +1023,7 @@
 #   ----^-----------
 #   no type declarations needed
 #
-# Nix also has attribute sets, which are knows as maps
+# Nix also has attribute sets, which are known as maps
 # or objects in other languages.
 #
 # Attribute sets are key-value collections, written with curly braces
