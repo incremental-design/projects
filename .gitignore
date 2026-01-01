@@ -1,0 +1,12 @@
+*
+!.github
+!.github/**
+!.config
+!.config/**
+!.envrc
+!.gitignore
+!CONTRIBUTE.md
+!flake.nix
+!flake.lock
+!LICENSE
+!README.md
