@@ -1,5 +1,5 @@
 #
-# import configVscode.nix, configZed.nix, stubProject.nix, devShell.nix from language-* subfolders
+# import configVscode.nix, configZed.nix, devShell.nix from language-* subfolders
 #
 {pkgs ? import <nixpkgs> {}}: let
   # Get all language directories
@@ -20,14 +20,10 @@
   # Get all existing paths for each config type
   importConfigVscode = map (f: import f.file {inherit pkgs;}) (getExistingFiles "configVscode.nix");
   importConfigZed = map (f: import f.file {inherit pkgs;}) (getExistingFiles "configZed.nix");
-  importStubProject = map (
-    f:
-      (import f.file {inherit pkgs;}) // {devShellName = f.language;}
-  ) (getExistingFiles "stubProject.nix");
   importDevShell = map (
     f:
       (import f.file {inherit pkgs;}) // {name = f.language;}
   ) (getExistingFiles "devShell.nix");
 in {
-  inherit importConfigVscode importConfigZed importStubProject importDevShell;
+  inherit importConfigVscode importConfigZed importDevShell;
 }
