@@ -1,35 +1,19 @@
 {
   pkgs ? import <nixpkgs> {},
-  stubProjectConfigs ? (
-    map (
-      languageFolder: (
-        map (
-          stubProjectNix:
-            (import "./${languageFolder}/${stubProjectNix.name}" {inherit pkgs;})
-            // {
-              devShellName = pkgs.lib.removePrefix "language-" languageFolder;
-            }
-        ) (
-          import ./match-dirent.nix {
-            pkgs = pkgs;
-            from = "./${languageFolder}";
-            matchDirentName = name: (builtins.match "^stubProject.nix$") != null;
-            matchDirentType = type: (builtins.match "regular") != null;
-          }
-        )
-      )
-    ) (
-      map (dirent: dirent.name)
-      (
-        import ./match-dirent.nix {
-          pkgs = pkgs;
-          from = ./.;
-          matchDirentName = name: (builtins.match "^language-" name) != null;
-          matchDirentType = type: (builtins.match "directory" type) != null;
-        }
-      )
-    )
-  ),
+  stubProjectConfigs ?
+    map (stubProjectNixDirent:
+      (import ./${stubProjectNixDirent.name} {inherit pkgs;})
+      // {
+        devShellName = builtins.head (builtins.match "^stub-project-(.*).nix$" stubProjectNixDirent.name);
+      })
+    (
+      import ./match-dirent.nix {
+        pkgs = pkgs;
+        from = ./.;
+        matchDirentName = name: (builtins.match "^stub-project-.*\.nix$" name) != null;
+        matchDirentType = type: (builtins.match "^regular$" type) != null;
+      }
+    ),
 }: let
   validStubProjectConfigs = let
     configs =
