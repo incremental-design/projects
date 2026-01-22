@@ -5,6 +5,7 @@
 !commitlintConfig.nix
 !configVscode.nix
 !importFromLanguageFolder.nix
+!importFrom.nix
 !configZed.nix
 !devShell.nix
 !sanitizeProjectName.nix
@@ -12,5 +13,6 @@
 !CONTRIBUTE.md
 !installGitHooks.nix
 !lintCommit.nix
+!match-dirent.nix
 !recurse.nix
 !getSemverTag.nix
