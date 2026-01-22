@@ -472,7 +472,7 @@
             (import ./configZed.nix {inherit pkgs;})
             (import ./installGitHooks.nix {inherit pkgs;})
           ]
-          ++ (import ./stubProject.nix {inherit pkgs;})
+          ++ (import ./stub-project.nix {inherit pkgs;})
           ++ builtins.map (cmd:
             pkgs.writeShellApplication {
               name = "${cmd}-all";
