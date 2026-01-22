@@ -9,7 +9,6 @@
 !configZed.nix
 !devShell.nix
 !sanitizeProjectName.nix
-!stubProject.nix
 !CONTRIBUTE.md
 !installGitHooks.nix
 !lintCommit.nix
