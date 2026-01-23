@@ -186,10 +186,6 @@
         -->
         EOF
 
-        cat <<-EOF > "$name/.envrc"
-        use flake "$FLAKE_DIR#${stubProject.devShellName}"
-        EOF
-
         # run the stubProject command, pass in the $name of the project and the $FLAKE_DIR
         stubProject "$name" "$FLAKE_DIR"
 
