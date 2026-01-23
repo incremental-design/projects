@@ -12,6 +12,7 @@
 !CONTRIBUTE.md
 !installGitHooks.nix
 !lintCommit.nix
+!parse-manifest-flake_nix.nix
 !match-dirent.nix
 !recurse.nix
 !stub-project.nix
