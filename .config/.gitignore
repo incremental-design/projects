@@ -16,4 +16,5 @@
 !recurse.nix
 !stub-project.nix
 !stub-project-nix_v2.33.1.nix
+!tool.nix
 !tool-nix_v2.33.1.nix
