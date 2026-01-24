@@ -4,7 +4,16 @@
     map (stubProjectNixDirent:
       (import ./${stubProjectNixDirent.name} {inherit pkgs;})
       // {
-        devShellName = builtins.head (builtins.match "^stub-project-(.*).nix$" stubProjectNixDirent.name);
+        tools =
+          map (toolVersion: {
+            name = builtins.elemAt toolVersion 0;
+            version = builtins.elemAt toolVersion 2;
+          })
+          (
+            map
+            (toolVersion: (builtins.split "_v" toolVersion))
+            (builtins.split "-" (builtins.head (builtins.match "^stub-project-(.*).nix$" stubProjectNixDirent.name)))
+          );
       })
     (
       import ./match-dirent.nix {
@@ -15,32 +24,19 @@
       }
     ),
 }: let
-  validStubProjectConfigs = let
-    configs =
-      builtins.map (
-        projectConfig:
-          if builtins.isAttrs projectConfig && builtins.hasAttr "devShellName" projectConfig
-          then projectConfig
-          else builtins.throw "invalid projectConfig ${projectConfig}"
-      )
-      stubProjectConfigs;
-
-    # Check for duplicate devShellName values
-    names = builtins.map (config: config.devShellName) configs;
-    uniqueNames = pkgs.lib.unique names;
-
-    # Throw error if there are duplicates
-    c =
-      if builtins.length names != builtins.length uniqueNames
-      then builtins.throw "Duplicate dev shell name values found: ${builtins.toJSON names}"
-      else configs;
-  in
-    c;
+  validStubProjectConfigs =
+    builtins.map (
+      projectConfig:
+        if builtins.isAttrs projectConfig && builtins.hasAttr "tools" projectConfig
+        then projectConfig
+        else builtins.throw "invalid projectConfig ${projectConfig}"
+    )
+    stubProjectConfigs;
   wrapStubProject = stubProject: pkgs:
     pkgs.writeShellApplication {
-      name = "project-stub-" + stubProject.devShellName; # e.g. project-stub-nix project-stub-go
+      name = "project-stub-" + builtins.concatStringsSep "-" (builtins.map (tool: tool.name + "_v" + tool.version) stubProject.tools);
       meta = {
-        description = "Stub a " + stubProject.devShellName + " project";
+        description = "Stub a project with " + builtins.concatStringsSep ", " (builtins.map (tool: tool.name + "_v" + tool.version) stubProject.tools);
       };
       runtimeInputs = [
         pkgs.coreutils
