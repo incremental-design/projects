@@ -19,47 +19,28 @@ pkgs.writeShellApplication {
         exit 1
     fi
 
-    PROJECT=''${PROJECT_DIR##*/}              # Extract basename using parameter expansion
+    PROJECT=''${PROJECT_DIR##*/}             # Extract basename using parameter expansion
     PROJECT=''${PROJECT//[^a-zA-Z0-9-]/_}    # Replace invalid chars with underscore
 
     # make a flake.nix
     cat <<-EOT > "$PROJECT_DIR/flake.nix"
-    # 0.0.0
-    # DO NOT REMOVE THE PRECEDING LINE.
-    # To bump the semantic version and trigger
-    # an auto-release when this project is merged
-    # to main, increment the semantic version above
-    #
-    # WHEN AND HOW TO EDIT THIS FLAKE
-    #
-    # use this flake when you need to build a project that contains code
-    # from multiple languages, has custom build steps, or special test
-    # suites.
-    #
-    # This flake inherits the project-lint-semver, project-build and
-    # project-test commands from the nix dev shell. It includes a custom
-    # project-lint command, that you can configure to lint the different
-    # files in the project.
-    #
-    # Edit the packages.default to define what the project-build
-    # command builds.
-    #
-    # Edit the checks to define the tests that the project-test
-    # command runs.
-    #
-    # Edit the devShells -> default -> devShellConfig ->  project-lint
-    # to define a custom lint script.
-    #
+    # see parse-manifest-flake_nix.nix to find out how
+    # project-lint, project-lint-semver, project-build, and
+    # project-test are run against this flake
     {
       description = "build and test for $PROJECT";
 
       inputs = {
-        parent-flake.url = "path:$FLAKE_DIR";
+        flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
+
+        nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*";
       };
 
       outputs = {
+        flake-schemas,
+        nixpkgs,
         self,
-        parent-flake,
+        ...
       }: let
         supportedSystems = [
           "x86_64-linux"
@@ -68,14 +49,24 @@ pkgs.writeShellApplication {
           "aarch64-darwin"
         ];
         forEachSupportedSystem = f:
-          parent-flake.inputs.nixpkgs.lib.genAttrs supportedSystems (
-            system:
-              f {
-                pkgs = import parent-flake.inputs.nixpkgs {inherit system;};
-              }
-          );
+          nixpkgs.lib.genAttrs supportedSystems (system:
+            f {
+              pkgs = import nixpkgs {inherit system;};
+            });
       in {
-        nix_version = "2.33.1";
+
+        # https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
+        schemas = flake-schemas.schemas // {
+            nixVersion = {
+            version = 1;
+            doc = "The nix version required to run this flake";
+            type = "string";
+            };
+        };
+
+        # nixVersion specifies the nix version needed to run this flake
+        nixVersion = "2.33.1";
+
         packages = forEachSupportedSystem ({pkgs}: {
           default = pkgs.stdenv.mkDerivation {
             name = "$PROJECT";
@@ -121,36 +112,6 @@ pkgs.writeShellApplication {
               echo "test passed" > "\$out"
             ''';
         });
-
-        devShells = forEachSupportedSystem ({pkgs}: {
-          default = let
-            devShellNix = pkgs.lib.head (pkgs.lib.filter (config: config.name == "nix") parent-flake.validDevShellConfigs.\''${pkgs.system});
-            devShellConfig = {
-              packages =
-                (pkgs.lib.filter (pname: pname != "project-lint") devShellNix.packages)
-                ++ [
-                  (pkgs.writeShellApplication {
-                    name = "project-lint";
-                    meta = {
-                      description = "lint project files"; # list the file types the project-lint command should lint
-                      runtimeInputs = with pkgs; [
-                        # include packages needed to lint project files
-                        alejandra
-                      ];
-                    };
-                    text = '''
-                      # add lint commands for non-nix files that you want to lint
-
-                      # lint all nix files in this directory
-                      alejandra -c *.nix
-                    ''';
-                  })
-                ];
-              shellHook = devShellNix.shellHook;
-            };
-          in
-            parent-flake.makeDevShell.\''${pkgs.system} devShellConfig pkgs;
-        });
       };
     }
     EOT
@@ -160,11 +121,6 @@ pkgs.writeShellApplication {
 
     # generate flake.lock for reproducibility
     (cd "$PROJECT_DIR" && nix flake update)
-
-    # overwrite the default .envrc to use the custom flake
-    cat <<-EOF > "$PROJECT_DIR/.envrc"
-    use flake
-    EOF
 
     # stage all project files
     git -C "$PROJECT_DIR" add .
