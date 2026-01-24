@@ -8,6 +8,7 @@
 !importFrom.nix
 !configZed.nix
 !devShell.nix
+!dev-shell.nix
 !sanitizeProjectName.nix
 !CONTRIBUTE.md
 !installGitHooks.nix
