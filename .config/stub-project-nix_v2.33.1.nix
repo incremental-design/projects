@@ -75,6 +75,7 @@ pkgs.writeShellApplication {
               }
           );
       in {
+        nix_version = "2.33.1";
         packages = forEachSupportedSystem ({pkgs}: {
           default = pkgs.stdenv.mkDerivation {
             name = "$PROJECT";
