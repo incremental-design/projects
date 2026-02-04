@@ -4,14 +4,17 @@
 !.gitignore
 !commitlintConfig.nix
 !configVscode.nix
+!config-vscode.nix
 !importFromLanguageFolder.nix
 !importFrom.nix
 !configZed.nix
+!config-zed.nix
 !devShell.nix
 !dev-shell.nix
 !sanitizeProjectName.nix
 !CONTRIBUTE.md
 !installGitHooks.nix
+!install-git-hooks.nix
 !lintCommit.nix
 !parse-manifest-flake_nix.nix
 !match-dirent.nix
