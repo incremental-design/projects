@@ -3,12 +3,14 @@
   commitMsg = "${lintCommit}/bin/lintCommit";
   prePush = "${pkgs.writeShellApplication {
     name = "prePush";
+    runtimeInputs = let
+      devShell = import ./dev-shell.nix {inherit pkgs;};
+    in [devShell.project-lint devShell.project-lint-semver devShell.project-build devShell.project-test];
     text = ''
-        # lint, lint-semver, build, test EVERYTHING before pushing
-      "${(import ./recurse.nix {
-        inherit pkgs;
-        steps = ["project-lint" "project-lint-semver" "project-build" "project-test"];
-      })}/bin/recurse" false;
+      project-lint --changed && \
+      project-lint-semver --changed && \
+      project-build --changed && \
+      project-test --changed
     '';
   }}/bin/prePush";
   # Create the installer script
