@@ -132,9 +132,10 @@
       [
         pkgs.glow
         pkgs.git
-        (import ./configVscode.nix {inherit pkgs;})
-        (import ./configZed.nix {inherit pkgs;})
-        (import ./installGitHooks.nix {inherit pkgs;})
+        (import ./config-vscode.nix {inherit pkgs;})
+        (import ./config-zed.nix {inherit pkgs;})
+        (import ./stub-project.nix {inherit pkgs;})
+        (import ./install-git-hooks.nix {inherit pkgs;})
         project-lint
         project-lint-semver
         project-build
