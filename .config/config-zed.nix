@@ -1,6 +1,14 @@
 {
   pkgs ? import <nixpkgs> {},
-  zedConfigs ? (import ./importFromLanguageFolder.nix {inherit pkgs;}).importConfigZed,
+  zedConfigs ?
+    map (configZedDirent: (import ./${configZedDirent.name} {inherit pkgs;})) (
+      import ./match-dirent.nix {
+        pkgs = pkgs;
+        from = ./.;
+        matchDirentName = name: (builtins.match "^config-zed-.*\.nix$" name) != null;
+        matchDirentType = type: (builtins.match "^regular$" type) != null;
+      }
+    ),
 }: let
   validZedConfigs = builtins.map (zc:
     if (builtins.isAttrs zc) && (builtins.hasAttr "zedSettings" zc) && (builtins.hasAttr "zedDebug" zc)
@@ -112,9 +120,9 @@
   };
 in
   project-install-zed-configuration
-# HOW TO SET UP A LANGUAGE-SPECIFIC ZED CONFIGURATION
+# HOW TO SET UP A TOOL-SPECIFIC ZED CONFIGURATION
 #
-# Each language-specific folder contains a configZed.nix. This
+# create a config-zed-<name-of-tool>.nix in the current directory. This
 # nix file must contain the following nix expression:
 #
 # { pkgs ? import <nixpkgs> {} }: {
@@ -149,7 +157,7 @@ in
 #   };                                     # use {} if no debugger for language
 # }
 #
-# this configZed.nix merges the contents of all language-specific configZed.nix:
+# this config-zed.nix merges the contents of all config-zed-<tool>.nix:
 #
 #      ________________________               ________________________
 #     / .zed/                  |             / language-*             |
