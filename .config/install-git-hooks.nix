@@ -1,5 +1,5 @@
 {pkgs ? import <nixpkgs> {}, ...}: let
-  lintCommit = import ./lintCommit.nix {inherit pkgs;};
+  lintCommit = import ./lint-commit.nix {inherit pkgs;};
   commitMsg = "${lintCommit}/bin/lintCommit";
   prePush = "${pkgs.writeShellApplication {
     name = "prePush";

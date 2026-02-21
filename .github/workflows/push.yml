@@ -99,7 +99,7 @@ jobs:
       - name: Build lintCommit from Nix
         run: |
           # Build the lintCommit tool from the Nix expression
-          nix-build .config/lintCommit.nix
+          nix-build .config/lint-commit.nix
 
       - name: Lint Commit Messages
         id: lint-commit-messages
