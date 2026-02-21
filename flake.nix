@@ -62,16 +62,23 @@
         });
   in {
     # Schemas tell Nix about the structure of your flake's outputs
-    schemas = flake-schemas.schemas;
-    makeDevShell = forEachSupportedSystem ({pkgs}: (import ./.config/devShell.nix {inherit pkgs;}).makeDevShell);
-    validDevShellConfigs = forEachSupportedSystem ({pkgs}: (import ./.config/devShell.nix {inherit pkgs;}).validDevShellConfigs);
+    # https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
+    schemas = flake-schemas.schemas // {
+      nixVersion = {
+        version = 1;
+        doc = "The nix version required to run this flake";
+        type = "string";
+      };
+    };
+
+    # nixVersion specifies the nix version needed to run this flake
+    nixVersion = "2.33.1";
 
     # Development environments
     devShells = forEachSupportedSystem (
-      {pkgs}: let
-        languageDevShells = (import ./.config/devShell.nix {inherit pkgs;}).devShells;
-      in
-        languageDevShells
+      {pkgs}: {
+        default = (import .config/dev-shell.nix {inherit pkgs;}).default;
+      }
     );
   };
 }
