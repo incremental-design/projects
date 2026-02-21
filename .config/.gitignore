@@ -3,6 +3,7 @@
 !.gitignore
 !commitlint-config.nix
 !config-vscode.nix
+!config-vscode-nix.nix
 !importFromLanguageFolder.nix
 !config-zed.nix
 !dev-shell.nix
