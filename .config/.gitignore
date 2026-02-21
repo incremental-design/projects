@@ -3,6 +3,7 @@
 !.envrc
 !.gitignore
 !commitlintConfig.nix
+!commitlint-config.nix
 !config-vscode.nix
 !importFromLanguageFolder.nix
 !config-zed.nix
@@ -12,6 +13,7 @@
 !CONTRIBUTE.md
 !install-git-hooks.nix
 !lintCommit.nix
+!lint-commit.nix
 !parse-manifest-flake_nix.nix
 !match-dirent.nix
 !recurse.nix
