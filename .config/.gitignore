@@ -1,10 +1,8 @@
 *
-!language-nix
 !.gitignore
 !commitlint-config.nix
 !config-vscode.nix
 !config-vscode-nix.nix
-!importFromLanguageFolder.nix
 !config-zed.nix
 !config-zed-nix.nix
 !dev-shell.nix
