@@ -6,6 +6,7 @@
 !config-vscode-nix.nix
 !importFromLanguageFolder.nix
 !config-zed.nix
+!config-zed-nix.nix
 !dev-shell.nix
 !CONTRIBUTE.md
 !install-git-hooks.nix
