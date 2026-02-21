@@ -1,12 +1,10 @@
 *
 !language-nix
-!.envrc
 !.gitignore
 !commitlint-config.nix
 !config-vscode.nix
 !importFromLanguageFolder.nix
 !config-zed.nix
-!devShell.nix
 !dev-shell.nix
 !CONTRIBUTE.md
 !install-git-hooks.nix
