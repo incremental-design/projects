@@ -1,5 +1,0 @@
-*
-!.gitignore
-!configZed.nix
-!configVscode.nix
-!devShell.nix
