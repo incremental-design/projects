@@ -56,51 +56,70 @@ Nix-direnv automatically loads these dev tools to your $PATH, when you `cd` into
 
 ## Develop
 
-`cd` into the root of the repository. `nix-direnv` will load `.envrc`, which will install git hooks, dev tools, and print a list of helper commands. If you are developing in [vscode](https://code.visualstudio.com/download) or [zed](https://zed.dev), `nix-direnv` will also configure your editor settings and extensions.
+`cd` into the root of the repository. `nix-direnv` will load `.envrc`, which will load the dev shell in [`flake.nix`](./flake.nix). This dev shell will
+- install git hooks
+- install dev tools, and load them into your $PATH
+- automatically install EVERY project's dependencies
+- symlink a [.vscode](https://code.visualstudio.com/download) configuration folder
+- symlink a [.zed](https://zed.dev) configuration folder
 
-If you have installed [nix](https://docs.determinate.systems) and nix-direnv, you should see the following output:
+If you have installed [nix](https://docs.determinate.systems) and nix-direnv, you should see output like the following:
 
 ```
 ✅ linked /nix/store/a6154vsavsldv23wwdwgb5q1hx7kly78-vscodeConfiguration to ./.vscode
 ✅ linked /nix/store/8s2f27ikvyxqf8mdzs4aa3p5jaa9cr05-zedConfiguration to ./.zed
-✅ linked commit-msg hook
-✅ linked pre-push hook
+✅ commit-msg hook replaced
+✅ pre-push hook already linked
+
+   project-lint
+
+  recurse through the working directory and subdirectories, linting all
+  projects that have a flake.nix
+
+  • use flag --changed to skip projects that have not changed in the latest
+  commit
+
+   project-lint-semver
+
+  recurse through the working directory and subdirectories, validating the
+  semantic version of projects that have a flake.nix
+
+  • use flag --changed to skip projects that have not changed in the latest
+  commit
+
+   project-build
+
+  recurse through the working directory and subdirectories, building projects
+  that have a flake.nix
+
+  • use flag --changed to skip projects that have not changed in the latest
+  commit
+
+   project-test
+
+  recurse through the working directory and subdirectories, testing projects
+  that have a flake.nix
+
+  • use flag --changed to skip projects that have not changed in the latest
+  commit
 
    project-install-vscode-configuration
 
-  │ install .vscode/ configuration folder, if .vscode/ is not already present.
-  │ Automatically run when this shell is opened.
+  symlink the .vscode configuration folder into the root of this repository.
+  Automatically run when this shell starts
 
    project-install-zed-configuration
 
-  │ install .zed/ configuration folder, if .zed/ is not already present.
-  │ Automatically run when this shell is opened
+  symlink the .zed configuration folder into the root ofthis repository.
+  Automatically run when this shell starts
 
-   project-install-git-hooks
+   nix
 
-  │ Install commit-msg and pre-push hooks in this project. Automatically run
-  │ when
-  │ this shell is opened
+  the version of nix to use in the current working directory
 
-   project-stub-nix
+   project-stub-nix_v2.33.1
 
-  │ Stub a nix project
-
-   project-lint-all
-
-  │ project-lint all projects
-
-   project-lint-semver-all
-
-  │ project-lint-semver all projects
-
-   project-build-all
-
-  │ project-build all projects
-
-   project-test-all
-
-  │ project-test all projects
+  Stub a project with nix_v2.33.1
 ```
 
 > [!TIP]
@@ -112,21 +131,20 @@ That's it! There's no super-complicated, error prone setup. No asking "what vers
 
 ### Repository Structure:
 
-This monorepo is split into several projects. Each project has a language, and bootstraps the dev tools you need to code in that language. E.g. some projects use go, and ship with the `go` command suite. Other projects use typescript and ship with `bun`.
-
-To load the dev tools, `cd` into the project. `nix-direnv` will read the `.envrc` in the project, and add the devtools to your $PATH. Then, it will print a list of commands you can use to lint, build and test the project.
-
-All projects will contain a `project-lint`, `project-build`, and `project-test` command. Some projects may contain additional commands. These helper commands wrap the language-specific commands required to lint, build and test the project.
+This monorepo is split into several projects. A project is any folder that contains a **manifest file** e.g. a `deno.json`, `go.mod`, `flake.nix`. 
+- Project folders can be nested.
+- A project folder can contain more than one manifest file.
+- You can run any of the `project-*` commands in any project folder. The command will automatically detect the manifest files in the folder _and_ _subfolders_, and run the corresponding command. E.g. `project-lint` in a folder with a `deno.json` and a `go.mod` will run both `deno-lint` and `golangci-lint`.
 
 > [!TIP]
 > **Why not directly run the language-specific lint, build and test commands?**
-> You *can* run the project's language-specific lint, build and test commands! The project-lint, project-build, and project-test commands give the [git hooks](.config/installGitHooks.nix), [`project-lint-all`](.config/devShell.nix), [`project-lint-semver-all`](.config/devShell.nix), [`project-build-all`](.config/devShell.nix), [`project-test-all`](.config/devShell.nix), and [github actions](.github/workflows/push.yml) a project-agnostic command to call when they [recurse](.config/recurse.nix) through the projects in the monorepo.
+> You *can* run the project's language-specific lint, build and test commands! The project-lint, project-build, and project-test commands give the [git hooks](.config/installGitHooks.nix), [`project-lint`](.config/dev-shell.nix), [`project-lint-semver`](.config/dev-shell.nix), [`project-build`](.config/dev-shell.nix), [`project-test`](.config/dev-shell.nix), and [github actions](.github/workflows/push.yml) a project-agnostic command to call when they recurse through the projects in the monorepo.
 
 All projects contain a `project-lint-semver` command. This command checks the semantic version of a project, and verifies that its semantic versions do not decrease over the course of the project's git history.
 
 **This repository will prevent you from pushing obviously broken code to Github.**
 
-This repository [automatically runs](./.config/installGitHooks.nix) the `project-lint`, `project-lint-semver`, `project-build`, and `project-test` commands in every project in the *latest* commit, [before you push](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) commits to any remote, using the [pre-push hook](.config/installGitHooks.nix). It also runs these hooks on *every* commit you push in [github actions](.github/workflows/push.yml), every time you push to github.
+This repository [automatically runs](./.config/install-git-hooks.nix) the `project-lint`, `project-lint-semver`, `project-build`, and `project-test` commands in every project in the *latest* commit, [before you push](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) commits to any remote, using the [pre-push hook](.config/installGitHooks.nix). It also runs these hooks on *every* commit you push in [github actions](.github/workflows/push.yml), every time you push to github.
 
 > [!WARN]
 > This repository will NOT prevent you from pushing semantically incorrect code to Github. Your job is to test and bench your code thoroughly *before* you push. Don't make it the next programmer's responsibility to find out and fix your code's nasty side effects.
@@ -158,15 +176,15 @@ This repository [automatically runs](./.config/installGitHooks.nix) the `project
      |- flake.lock        |  editor configuration folders.
      |                   -'
      |                   -,
-     |- go-starter        |
-     |                    |
-     |- typescript-       |- example projects. Do not modify these.
-     |  starter           |
-     |                    |
-     |                   -'
+     |- .../              |- folders that contain projects
+     |                   -'  
      |                   -,
-     |- infrastructure    |- project that contains NixOS, NixOps, and Kubernetes code
-     |                   -'  used to configure and deploy development hardware
+     |- go.work           |
+     |                    |
+     |- cargo.toml        |- workspace configuration files
+     |                    |
+     |- deno.json         |
+     |                   -'
      :
      :
   ```
@@ -229,6 +247,26 @@ I will only merge a PR with a project if
 > [!TIP]
 > If you need to make a project that combines multiple languages, or has a complicated build process, you can create a nix project. The nix project lets you define your own custom lint, build and test scripts.
 
+### How to use one project in another
+Go, deno, python and nix all support workspaces. Workspaces _alias_ package imports to their corresponding local directory:
+
+Each of these languages includes a workspace configuration file:
+
+| language | workspace configuration file                                                |
+|:---------|:----------------------------------------------------------------------------|
+| Go       | [`go.work`](https://go.dev/doc/tutorial/workspaces)                         |
+| Deno     | [`deno.json`](https://docs.deno.com/runtime/fundamentals/workspaces/)       |
+| Python   | [`pyproject.toml`](https://docs.astral.sh/uv/concepts/projects/workspaces/) |
+| Nix      | [`overlay.nix`](https://nixos.wiki/wiki/Overlays)                           |
+
+When you run a `project-stub-*` command, it automatically adds your new project to all applicable workspaces. (e.g. a project with a go.mod will be added to [`./go.work`](./go.work), a project with both a `deno.json` and a `pyproject.toml` will be added to _both_ [`deno.json`](./deno.json) and [`pyproject.toml`](./pyproject.toml))
+
+> [!TIP]
+> A single project can contain manifests for more than one language, and can therefore be added to more than one language's workspace.
+
+> [!TIP]
+> Nix doesn't actually support workspaces
+
 ### How to structure your code:
 
 Each file should contain ONE class, interface, or function. If your file exceeds 500 lines of code, your class, interface or function is probably doing too much.
@@ -241,15 +279,18 @@ In general, [follow design patterns](https://refactoring.guru) and the conventio
 
 - [typescript style guide](https://google.github.io/styleguide/tsguide.html)
 - [go style guide](https://go.dev/doc/effective_go)
+- [python style guide](https://peps.python.org/pep-0008/)
 
 If you do NOT follow these style guides, I will reject your PR and show you how to change your code so that it matches.
 
-Organize your code according to import scope. No code should ever import from a parent folder
+Organize the code within each project according to import scope. No code should ever import from a parent folder
 
 ```
 GOOD:
 
 import code from ./path/to/code
+import code from "some-package"
+import code from "@incremental.design/some/project" <- aliases to ./some/project
 
 BAD:
 
@@ -257,6 +298,10 @@ import code from ../../../code
 ```
 
 When your code only imports from child folders, it prevents import cycles, and makes it easy for other contributors to reason about the dependencies.
+
+> [!TIP]
+> It is OK to import code from another project, as long as you don't import from the relative path to the project. Use the project's package manager name instead.
+
 
 ### How to author a commit:
 See [`commitlint-config.nix`](.config/commitlintConfig.nix)
@@ -328,23 +373,20 @@ You must [sign all commits](https://docs.github.com/en/authentication/managing-c
 
 ## Lint:
 
-- Run `project-lint-all` in the root of this repo to run ALL tests
-
-- Run `project-lint` inside a project to run the project's tests.
+- Run `project-lint` in the root of this repo to run ALL tests in all projects in this directory and its subdirectories.
+- Run `project-lint --changed` in the root of this repo to run tests in the projects that changed between the previous commit and HEAD in this directory and its subdirectories.
 
 ## Build:
 
-- Run `project-build-all` in the root of this repo to run ALL tests
-
-- Run `project-build` inside a project to run the project's tests.
+- Run `project-build` in the root of this repo to run ALL tests in all projects in this directory and its subdirectories.
+- Run `project-build --changed` in the root of this repo to build the projects that changed between the previous commit and HEAD in this directory and its subdirectories.
 
 ## Test:
 
-- Run `project-test-all` in the root of this repo to run ALL tests
+- Run `project-test` in the root of this repo to run ALL tests in all projects in this directory and its subdirectories.
+- Run `project-test --changed` in the root of this repo to run tests in the projects that changed between the previous commit and HEAD in this directory and its subdirectories.
 
-- Run `project-test` inside a project to run the project's tests.
-
-Every exported function should have a unit test attached to it.
+**Make sure every exported function has a deterministic test**
 
 ## Document:
 
@@ -364,10 +406,11 @@ Once github actions tags the commits, it will publish projects to the registries
 
 e.g. 
 
-| manifest file  | registry                                                |
-|:---------------|:--------------------------------------------------------|
-| `flake.nix`    | [flakehub](https://flakehub.com/flakes)                 |
-| `package.json` | [npm](https://www.npmjs.com/)                           |
-| `go.mod`       | [pkg.go.dev](https://pkg.go.dev/about#adding-a-package) |
+| manifest file   | registry                                                |
+|:----------------|:--------------------------------------------------------|
+| `flake.nix`     | [flakehub](https://flakehub.com/flakes)                 |
+| `deno.json`     | [jsr](https://www.jsr.io/)                              |
+| `go.mod`        | [pkg.go.dev](https://pkg.go.dev/about#adding-a-package) |
+| `pyproject.toml`| [pypi](https://pypi.org)                                |
 
 You cannot manually publish a project from your terminal. Only Github Actions has the keys to package registries.
