@@ -1,0 +1,95 @@
+name: Tag Commit
+
+# Tag Commit Pipeline Flow:
+#
+#  ______                _______________
+# | Tag  |              |               |
+# | Main +---dispatches--> Tag Commit   |
+# |______|              |               |
+#                       |  1. Generate  |
+#                       |     App token |
+#                       |  2. Create    |
+#                       |     single    |
+#                       |     tag at    |
+#                       |     commit    |
+#                       |_______________|
+#
+# This workflow is invoked once per tag by the Tag Main
+# workflow. Each invocation is a separate push, which
+# avoids GitHub's branch context restrictions on tag
+# creation.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag name to create (e.g. path/to/package/v1.2.3)'
+        required: true
+        type: string
+      sha:
+        description: 'The commit SHA to tag'
+        required: true
+        type: string
+
+jobs:
+  tag-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Create tag
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -e
+
+          TAG="${{ inputs.tag }}"
+          SHA="${{ inputs.sha }}"
+
+          echo "Creating tag: $TAG for commit: $SHA"
+
+          # Check if tag already exists
+          if gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" &>/dev/null; then
+            echo "ℹ️  Tag already exists: $TAG"
+            exit 0
+          fi
+
+          BACKOFF=1
+          ATTEMPT=1
+
+          while (( ATTEMPT <= 5 )); do
+            if gh api --method POST "repos/${{ github.repository }}/git/refs" \
+              -f "ref=refs/tags/$TAG" \
+              -f "sha=$SHA" 2>&1; then
+              echo "✅ Created tag: $TAG"
+              exit 0
+            fi
+
+            # Check if it was created between our check and our attempt
+            if gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" &>/dev/null; then
+              echo "ℹ️  Tag already exists: $TAG"
+              exit 0
+            fi
+
+            if (( ATTEMPT == 5 )); then
+              echo "❌ Failed to create tag: $TAG (after 5 attempts)" >&2
+              exit 1
+            fi
+
+            echo "❌ Failed to create tag: $TAG (attempt $ATTEMPT/5)" >&2
+            echo "⏳ Retrying in ${BACKOFF}s..."
+            sleep "$BACKOFF"
+
+            BACKOFF=$((BACKOFF * 2))
+            (( ATTEMPT++ ))
+
+            if (( BACKOFF > 60 )); then
+              echo "❌ Backoff seconds ($BACKOFF) would exceed maximum of 60" >&2
+              exit 1
+            fi
+          done
