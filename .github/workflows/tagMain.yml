@@ -2,10 +2,34 @@ name: Tag Main
 
 # Tag Main Pipeline Flow:
 #
-# This workflow iterates through commits from
-# merge base to HEAD. For each commit, it runs recurse
-# which outputs tags that should be created, then
-# creates and pushes them atomically.
+# ┌─────────────────────────────────────────┐
+# │  Push to main branch                    │
+# └────────────────┬────────────────────────┘
+#                  │
+#                  ▼
+# ┌─────────────────────────────────────────┐
+# │  1. Check out repository                │
+# │  2. Generate GitHub App token           │
+# └────────────────┬────────────────────────┘
+#                  │
+#                  ▼
+# ┌─────────────────────────────────────────┐
+# │  Run project-lint-semver on commits     │
+# │  (from merge base to HEAD)              │
+# └────────────────┬────────────────────────┘
+#                  │
+#                  ▼
+# ┌─────────────────────────────────────────┐
+# │  Parse semver output and deduplicate    │
+# │  consecutive versions per package       │
+# └────────────────┬────────────────────────┘
+#                  │
+#                  ▼
+# ┌─────────────────────────────────────────┐
+# │  For each package version change:       │
+# │  Create tag: path@version at commit     │
+# │  (with exponential backoff retry)       │
+# └─────────────────────────────────────────┘
 
 on:
   push:
@@ -30,10 +54,6 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Build recurse.nix script
-        run: |
-          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]'
-
       - name: Collect and push tags
         id: collect-tags
         env:
@@ -41,75 +61,124 @@ jobs:
         run: |
           set -e
 
-          echo "============================================================"
-          echo "🔍 Processing commits from merge base to HEAD"
-          echo "============================================================"
+          mangle_path() {
+            local path="$1"
 
-          MERGE_BASE=${{ github.event.before }}
-          COMMITS=$(git rev-list --reverse $MERGE_BASE..HEAD)
+            # Git-tag discoverable ecosystems (auto-index from Git tags)
 
-          if [[ -z "$COMMITS" ]]; then
-            echo "ℹ️ No commits to process"
-            exit 0
-          fi
+            # Nix: FlakeHub auto-discovers from Git tags matching semver
+            if [[ "$path" =~ \#packages ]]; then
+              echo "$(dirname "$path")/${path#*\#packages.}/v"
+            # Go: pkg.go.dev auto-discovers from Git tags with format path/package/vX.Y.Z
+            elif [[ "$path" =~ go\.mod ]]; then
+              echo "$(dirname "$path")/v"
+            #
+            # Explicit CI/CD publish ecosystems (require manual publish)
+            # the tag format doesn't matter for these package managers, but we keep
+            # the format consistent for ease of readability
+            #
+            # Python: PyPI requires explicit upload via CI/CD
+            elif [[ "$path" =~ pyproject\.toml ]]; then
+              echo "$(dirname "$path")/v"
+            # Node.js/Deno: JSR requires explicit publish via deno publish
+            elif [[ "$path" =~ package\.json ]] || [[ "$path" =~ deno\.json ]]; then
+              echo "$(dirname "$path")/v"
+            # Rust: crates.io requires explicit publish via cargo publish
+            elif [[ "$path" =~ Cargo\.toml ]]; then
+              echo "$(dirname "$path")/v"
+            else
+              dirname "$path"
+            fi
+          }
 
-          declare -a TAGS_TO_CREATE=()
+          create_tag_at_hash() {
+            local path="$(mangle_path $1)"
+            local version="$2"
+            local sha="$3"
+            local initial_backoff="${4:-1}"
+            local tag="${path}${version}"
 
-          for commit in $COMMITS; do
-            echo "============================================================"
-            echo "🔍 Processing commit: $commit"
-            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
-            echo "============================================================"
+            if (( initial_backoff > 60 )); then
+              echo "  ❌ Backoff seconds ($initial_backoff) exceeds maximum of 60" >&2
+              return 1
+            fi
 
-            git checkout -q $commit
+            echo "Creating tag: $tag for commit: $sha"
 
-            echo "🏃 Running recurse for commit $commit..."
+            local attempt=1
+            local backoff=$initial_backoff
 
-            # recurse outputs tags (one per line)
-            while IFS= read -r tag; do
-              if [ -n "$tag" ]; then
-                # Store both tag and commit sha in array (alternating: tag, sha, tag, sha, ...)
-                TAGS_TO_CREATE+=("$tag" "$commit")
-                echo "  📌 Collected tag: $tag for commit: $commit"
-              fi
-            done < <(./result/bin/recurse)
-
-            echo "✅ Commit $commit processed"
-            echo ""
-          done
-
-          git checkout -q ${{ github.sha }}
-
-          if [ -L result ]; then
-            unlink result
-          fi
-
-          if [ ${#TAGS_TO_CREATE[@]} -gt 0 ]; then
-            echo "============================================================"
-            echo "📤 Creating ${#TAGS_TO_CREATE[@]} tags via API..."
-            echo "============================================================"
-
-            # Iterate through pairs: tag at index i, sha at index i+1
-            for ((i=0; i<${#TAGS_TO_CREATE[@]}; i+=2)); do
-              tag="${TAGS_TO_CREATE[$i]}"
-              sha="${TAGS_TO_CREATE[$((i+1))]}"
-
-              echo "Creating tag: $tag for commit: $sha"
-
+            while (( attempt <= 5 )); do
               if gh api repos/${{ github.repository }}/git/refs \
                 -f ref="refs/tags/$tag" \
                 -f sha="$sha" 2>&1; then
                 echo "✅ Created tag: $tag"
-              else
-                # Creation failed, check if tag already exists
-                if gh api repos/${{ github.repository }}/git/refs/tags/$tag &>/dev/null; then
-                  echo "  ℹ️  Tag already exists: $tag"
-                else
-                  echo "  ❌ Failed to create tag: $tag" >&2
-                  exit 1
-                fi
+                return 0
+              fi
+
+              # Creation failed, check if tag already exists
+              if gh api repos/${{ github.repository }}/git/refs/tags/$tag &>/dev/null; then
+                echo "  ℹ️  Tag already exists: $tag"
+                return 0
+              fi
+
+              # If this was the last attempt, fail
+              if (( attempt == 5 )); then
+                echo "  ❌ Failed to create tag: $tag (after 5 attempts)" >&2
+                return 1
+              fi
+
+              echo "  ❌ Failed to create tag: $tag (attempt $attempt/5)" >&2
+              echo "  ⏳ Retrying in ${backoff}s..."
+              sleep "$backoff"
+
+              backoff=$((backoff * 2))
+              (( attempt++ ))
+
+              # Check if next backoff would exceed 60 seconds
+              if (( backoff > 60 )); then
+                echo "  ❌ Backoff seconds ($backoff) would exceed maximum of 60" >&2
+                return 1
               fi
             done
-          else
-            echo "ℹ️ No tags to create"
+          }
+
+          MERGE_BASE=${{ github.event.before }}
+          HEAD="$(git rev-parse HEAD)"
+
+          if [[ "$MERGE_BASE" == "$HEAD" ]]; then
+            echo "ℹ️ No commits to process"
+            exit 0
           fi
+
+          if ! nix develop --command project-lint-semver $MERGE_BASE $HEAD | tee /tmp/semver_output.jsonl; then
+            echo "❌ project-lint-semver failed" >&2
+            exit 1
+          fi
+
+          # we write to tmp and read back in so that we can catch error in project-lint-semver command
+
+          jq -Rs 'split("\n") | map(select(length > 0) | fromjson) | reduce .[] as $item ({};
+            .[$item.path] //= [] |
+            if (.[$item.path] | length) == 0 then
+              .[$item.path] += [{hash: $item.hash, version: $item.version}]
+            elif .[$item.path][-1].version != $item.version then
+              .[$item.path] += [{hash: $item.hash, version: $item.version}]
+            else
+              .
+            end
+          ) | [to_entries[] | .key as $path | .value[] | select(.version | length > 0) | {path: $path, hash: .hash, version: .version}]' /tmp/semver_output.jsonl > /tmp/package_versions.json
+
+          cat /tmp/package_versions.json
+
+          if [ ! -s /tmp/package_versions.json ]; then
+            echo "no tags to create" >&2
+            exit 0
+          fi
+
+          # traverse the map of tags tmp package versions.json , and create a tag for each version
+
+          jq -r '.[] | "\(.path) \(.version) \(.hash)"' /tmp/package_versions.json | while read path version hash; do
+            path="$path"
+            create_tag_at_hash "$path" "$version" "$hash" 1
+          done
