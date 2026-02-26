@@ -40,9 +40,38 @@
         meta = {
           description = "lint all .nix files in current working directory, with alejandra";
         };
-        runtimeInputs = with pkgs; [alejandra];
+        runtimeInputs = with pkgs; [alejandra git];
         text = ''
-          alejandra "''${PWD}/*" "$@" || exit 1
+          CHANGED=0
+          ALL=0
+
+          ARGS=()
+
+          for arg in "$@"; do
+              if [[ "$arg" == "--changed" ]]; then
+                  CHANGED=1
+              elif [[ "$arg" == "--all" ]]; then
+                  ALL=1
+              else
+                  ARGS+=("$arg")
+              fi
+          done
+
+          if (( ALL == 1 && CHANGED == 1 )); then
+              echo "cannot submit both --all and --changed" >&2
+              exit 1
+          elif (( CHANGED == 1 )); then
+              readarray -t changed < <(git log HEAD^..HEAD --name-only --pretty=format: -- '*.nix')
+              LEN_CHANGED="''${#changed[@]}"
+
+              if (( LEN_CHANGED == 0 )); then
+                  echo "no .nix files changed in ''${PWD}, nothing to lint." >&2
+                  exit 0
+              fi
+              alejandra "''${changed[@]}" "''${ARGS[@]}" || exit 1
+          else
+            alejandra "''${PWD}/*" "''${ARGS[@]}" || exit 1
+          fi
         '';
       })
     (pkgs.writeShellApplication
@@ -54,11 +83,102 @@
         runtimeInputs = with pkgs; [git jq];
         text = ''
           # usage
-          # project-lint-semver [<from-hash> <to-hash>]
+          # project-lint-semver [ --all | --changed ] [<from-hash> <to-hash>]
           #
           # run this command without any arguments to lint semver from HEAD to BASE
           # run this command with two commit hashes, <from-hash> and <to-hash> to compare semvers
-          # at the two hashes
+          # between the two hashes
+          #
+          # nix flakes are different from most other manifest files. Most manifest files contain ONE
+          # semantic version, but nix flakes can contain zero or more.
+          #
+          # A nix flake contains packages, each of which might have a semantic version
+          #
+          # e.g.
+          #      _______
+          #     / flake.nix
+          #     |       |
+          #     |       |
+          #     |___,___|
+          #         |
+          #         |- inputs
+          #         |   |
+          #         |   |- flake-schemas
+          #         |   |   |
+          #         |   |   '- url
+          #         |   |
+          #         |   '- nixpkgs
+          #         |       |
+          #         |       '- url
+          #         |
+          #         '- outputs
+          #             |
+          #             |- schemas
+          #             |
+          #             |- nixVersion
+          #             |
+          #             |- packages
+          #             :   |
+          #                 |- package-A
+          #                 |   |
+          #                 |   '- version
+          #                 |
+          #                 |- package-B
+          #                 |
+          #                 '- package-C
+          #                     |
+          #                     '- version
+          #
+          # The packages within a flake can vary from one commit to another. This script
+          # checks ALL commits within a range of commits, and gets the set of packages that
+          # existed for part or all of that range. Then, it verifies that the semantic version
+          # of each package that existed did not decrease in subsequent commits within that
+          # range.
+          #
+          #     COMMIT
+          #                                                                                   | 0.0.9 < 0.1
+          #   * 83ebda...       "2.1.1"          "1.0.1"                           "0.0.9"    < a package version cannot decrease in a
+          #   |                    :                :                                 :       | subsequent commit
+          #   |                    :                :                                 :
+          #   |                    :                :            package-C            :
+          #   |                    :                :             deleted             :
+          #   |                    :                :                :                :
+          #   * 45bd33...       "2.1.1"          "1.0.1"           "0.1"            "0.1"
+          #   |                    :                :                :                :
+          #   |                    :            package-B            :                :
+          #   |                    :             created             :                :
+          #   |                    :                                 :                :
+          #   |                    :                                 :                :        | <unversioned> is filled in as 0.0.0
+          #   * aa3ee3...       "2.1.0"                           "0.0.1"       <unversioned>  < a package cannot be versioned in one commit
+          #   |                    :                                 :                :        | and then unversioned in a subsequent commit
+          #   |                    :                             package-C            :
+          #   |                    :            package-B         created             :
+          #   |                    :             deleted                              :
+          #   |                    :                :                                 :
+          #   * bbee23...       "2.1.0"           "0.1"                             "0.1"
+          #   |                    :                :                                 :
+          #   |                    :                :                                 :
+          #   |                    :                :                                 :
+          #   |                    :                :                                 :
+          #   |                    :                :                                 :
+          #   * eabc21...       "2.0.1"       <unversioned>                     <unversioned>
+          #   |                    :                :                                 :
+          #   |                package-A        package-B                         package-D
+          #   |                 created          created                           created
+          #   :                               ------^------
+          #   :                               a package can be
+          #                                   created and then
+          #                                   deleted in a
+          #                                   subsequent commit
+          #                                   and then even
+          #                                   created again.
+          #                                   Its semantic version
+          #                                   is valid as long
+          #                                   as it does not
+          #                                   decrease in
+          #                                   subsequent
+          #                                   commits
+
 
           if [ -n "$(git status --short)" ]; then
               echo "working directory contains uncommitted changes, cannot project-lint-semver. stash or discard changes and then try again" >&2
@@ -69,11 +189,17 @@
           TO_HASH=""
 
           for arg in "$@"; do
-              if [[ "$arg" == "--all" || "$arg" == "--changed" ]]; then
+              if [[ "$arg" == "--all" && -z "$FROM_HASH" ]]; then
                   continue
-              fi
-
-              if [ -z "$FROM_HASH" ]; then
+              elif [[ "$arg" == "--all" ]]; then
+                  echo "if --all is passed, it must appear before $FROM_HASH in args list" >&2
+                  exit 1
+              elif [[ "$arg" == "--changed" && -z "$FROM_HASH" ]]; then
+                  continue
+              elif [[ "$arg" == "--changed" ]]; then
+                  echo "if --changed is passed, it must appear before $FROM_HASH in args list" >&2
+                  exit 1
+              elif [ -z "$FROM_HASH" ]; then
                   FROM_HASH="$arg"
               elif [ -z "$TO_HASH" ]; then
                   TO_HASH="$arg"
@@ -83,9 +209,18 @@
               fi
           done
 
-          if [ -n "$FROM_HASH" ] && [ -z "$TO_HASH" ]; then
-              echo "you must provide two hashes to compare semantic versions at each" >&2
+          if [[ -n "$FROM_HASH"  &&  -z "$TO_HASH" ]]; then
+              echo "you must provide two hashes to lint semantic versions between them" >&2
               exit 1
+          fi
+
+          FIRST_COMMIT="$(git rev-list --max-parents=0 HEAD)"
+
+          if [ -z "$FROM_HASH" ] && [ -z "$TO_HASH" ]; then
+            FROM_HASH="$FIRST_COMMIT" # very first commit of all time
+            TO_HASH=$(git rev-parse HEAD) # latest commit on current branch
+          elif [[ "$FROM_HASH" != "$FIRST_COMMIT" ]]; then
+              FROM_HASH="''${FROM_HASH}^"   # FROM_HASH parent, so that FROM_HASH is included in comparison
           fi
 
           function get_package_versions(){
@@ -100,8 +235,9 @@
               in formattedPackageVersions' 2>/dev/null || return 0
           }
 
-          # given two lists of packages from get_package_versions, $1 and $2, iterate through each list, verifying that matching packages semvers decrease from $1 to $2, and accumulating
-          # unmatched packages into a returned list
+          # given two lists of packages from get_package_versions, $1 and $2, iterate through each list,
+          # verifying that matching packages semvers decrease from $1 to $2. Then, return the full outer
+          # join with right-side-preference
           function lint_package_semvers(){
 
               if [ -z "$2" ]; then
@@ -131,100 +267,66 @@
               return 1
           }
 
-          function fileExistsAtHash(){
-              local hash="$1"
-              if ! git cat-file -e "''${hash}:flake.nix" 2>/dev/null; then
-                  return 1
-              fi
+          function render_packages_jsonl(){
+              echo "$3" | jq -r . | jq -c --arg pwd "$2" --arg hash "$1" '.[] | {path: "\($pwd)#packages.\(.distribution).\(.name)", version: .version, hash: $hash}'
           }
 
-          # handle case where we lint semver from HEAD all the way to BASE
-          if [ -z "$FROM_HASH" ] && [ -z "$TO_HASH" ]; then
+          COMMITS_WITH_CHANGE=()
+          readarray -t COMMITS_WITH_CHANGE < <(git log "$FROM_HASH..$TO_HASH" --pretty=format:"%H" -- "''${PWD}/flake.nix") # only commits in which ./flake.nix changed
+          COMMITS_WITH_CHANGE_LEN="''${#COMMITS_WITH_CHANGE[@]}"
 
-              CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          ALL_COMMITS=()
+          readarray -t ALL_COMMITS < <(git log "$FROM_HASH..$TO_HASH" --pretty=format:"%H") # all commits
+          ALL_COMMITS_LEN="''${#ALL_COMMITS[@]}"
 
-              readarray -t commits < <(git log --pretty=format:"%H" -- "''${PWD}/flake.nix")
+          CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-              LEN="''${#commits[@]}"
+          CHANGED_INDEX=0
+          ALL_INDEX=0
 
-              if (( LEN == 1 )); then
-                  echo "''${PWD}/flake.nix has never changed since it was introduced in ''${commits[0]}" >&2
-                  exit 0
-              elif (( LEN == 0 )) then
-                  echo "''${PWD} has never had a flake.nix" >&2
-                  exit 0
-              fi
+          ACC_PKGS="$(get_package_versions)"
+          CURR_PKGS="$ACC_PKGS"
+          RELPATH="$(git rev-parse --show-prefix)"
 
-              ACC_PKGS=""
-              CURR_PKGS=""
 
-              for ((i=0; i<LEN-1; i++))
-              do
-                  git -c advice.detachedHead=false checkout "''${commits[i]}" 2>/dev/null
+          for (( ALL_INDEX = 0; ALL_INDEX < ALL_COMMITS_LEN; ALL_INDEX++)); do
 
-                  CURR_PKGS=$(get_package_versions)
-
-                  if [ -z "$ACC_PKGS" ]; then
-                      ACC_PKGS="$CURR_PKGS"
-                  else
-                      if ! ACC_PKGS=$(lint_package_semvers "$ACC_PKGS" "$CURR_PKGS" 2>/dev/null); then
-                        echo "project-lint-semver failed for ''${PWD}/flake.nix because package semantic versions decreased after ''${commits[i]}." >&2
-                        git -c advice.detachedHead=false checkout "$CURR_BRANCH" 2>/dev/null
-                        exit 1
-                      fi
-                  fi
-              done
-              git -c advice.detachedHead=false checkout "$CURR_BRANCH" 2>/dev/null
-              exit 0
+          if (( CHANGED_INDEX == COMMITS_WITH_CHANGE_LEN )); then
+              break
+              # the FIRST commit at which the flake.nix changed is always the commit at which it was created
           fi
 
-          # handle case where we compare flake.nix package semvers at two hashes
-          if ! fileExistsAtHash "$FROM_HASH"; then
-            echo "''${PWD}/flake.nix does not exist at ''${FROM_HASH}" >&2;
-              exit 1
-          fi
+            if [[ "''${ALL_COMMITS[$ALL_INDEX]}" == "''${COMMITS_WITH_CHANGE[$CHANGED_INDEX]}" ]]; then
+                echo "|       " >&2
+                echo "|       ''${COMMITS_WITH_CHANGE[$CHANGED_INDEX]} - ''${PWD}/flake.nix changed " >&2
+                echo "|       linting package semantic versions" >&2
+                echo "'       " >&2
 
-          if ! fileExistsAtHash "$TO_HASH"; then
-            echo "''${PWD}/flake.nix does not exist at ''${TO_HASH}" >&2;
-              exit 1
-          fi
+                CHANGED_INDEX=$((CHANGED_INDEX + 1))
 
-          TO_PACKAGES=""
-          FROM_PACKAGES=""
+                git -c advice.detachedHead=false checkout "''${ALL_COMMITS[$ALL_INDEX]}" 2>/dev/null
+                CURR_PKGS="$(get_package_versions)"
 
-          if ! git -c advice.detachedHead=false checkout "$TO_HASH" 2>/dev/null; then
-              echo "Failed to checkout ''${TO_HASH}" >&2;
-              exit 1
-          fi
+                if ! ACC_PKGS="$(lint_package_semvers "$ACC_PKGS" "$CURR_PKGS")"; then
+                  echo "package semvers decreased from ''${ALL_COMMITS[$ALL_INDEX]} to ''${ALL_COMMITS[0]}" >&2
+                  git -c advice.detachedHead=false checkout "$CURR_BRANCH" &>/dev/null
+                  exit 1
+                fi
+            else
+                echo "|       " >&2
+                echo "|       ''${ALL_COMMITS[$ALL_INDEX]} - ''${PWD}/flake.nix did not change" >&2
+                echo "'       " >&2
+            fi
 
-          TO_PACKAGES=$(get_package_versions 2>/dev/null)
+            render_packages_jsonl "''${ALL_COMMITS[$ALL_INDEX]}" "$RELPATH" "$CURR_PKGS"
+          done
 
-          if ! git -c advice.detachedHead=false checkout "$FROM_HASH" 2>/dev/null; then
-              echo "Failed to checkout ''${FROM_HASH}" >&2;
-              exit 1
-          fi
-
-          FROM_PACKAGES=$(get_package_versions 2>/dev/null)
-
-          if [ -z "$TO_PACKAGES" ] && [ -z "$FROM_PACKAGES" ]; then
-            echo "''${PWD}/flake.nix does not contain any packages at ''${TO_HASH} or ''${FROM_HASH}. Nothing to compare." >&2;
-              exit 0
-          fi
-
-          if [ -z "$TO_PACKAGES" ]; then
-            echo "''${PWD}/flake.nix does not contain any packages at ''${TO_HASH}. Cannot compare to ''${FROM_HASH}" >&2;
-              exit 0
-          fi
-
-          if [ -z "$FROM_PACKAGES" ]; then
-            echo "''${PWD}/flake.nix does not contain any packages at ''${FROM_HASH}. Cannot compare to ''${TO_HASH}" >&2;
-              exit 0
-          fi
-
-          if ! lint_package_semvers "$TO_PACKAGES" "$FROM_PACKAGES"; then
-              echo "lint_package_semvers failed from ''${FROM_HASH} to ''${TO_HASH}" >&2
-              exit 1
-          fi
+          for ((; ALL_INDEX < ALL_COMMITS_LEN; ALL_INDEX++)); do
+              echo "|       " >&2
+              echo "|       ''${ALL_COMMITS[$ALL_INDEX]} - ''${PWD}/flake.nix did not exist, skipping" >&2
+              echo "'       " >&2
+          done
+          git -c advice.detachedHead=false checkout "$CURR_BRANCH" &>/dev/null
         '';
       })
     (pkgs.writeShellApplication
