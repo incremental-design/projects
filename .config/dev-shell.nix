@@ -43,16 +43,11 @@
           fi
         }
 
-        # scoop the first --changed and --all flags passed into args
-        ARGS=()
-
         for arg in "$@"; do
         if [[ "$arg" = "--changed" && "$CHANGED" = 0 ]]; then
             CHANGED=1
         elif [[ "$arg" = "--all" && "$ALL" = 0 ]]; then
             ALL=1
-        else
-            ARGS+=("$arg")
         fi
         done
 
@@ -66,8 +61,9 @@
         fi
 
         run_cmd(){
-            local cmdPath="$1"
-            local manifestName="$2"
+            local workdir="$1"
+            local cmdPath="$2"
+            local manifestName="$3"
             local returnCode=0
             local manifestPath=""
             local d=""
@@ -76,17 +72,37 @@
 
             # iterate over manifests from subdirs all the way back up to PWD
             for (( i = "''${#all_manifests[@]}" - 1; i >= 0; i-- )); do
+                cd "$workdir"
                 manifestPath=$(realpath "''${all_manifests[$i]}")
                 d=$(dirname "$manifestPath")
 
                 if (( ALL==1 )) || did_change "$d"; then
                     cd "$d"
-                    "$cmdPath" "''${ARGS[@]}" || returnCode=1
+
+                    echo "" >&2
+                    echo "|   " >&2
+                    echo "|   command attempting:" >&2
+                    echo "|   ''${d}" >&2
+                    echo "|   ''${cmdPath} ''${manifestName} ''${*:4}" >&2
+                    echo "'   " >&2
+
+                    "$cmdPath" "''${@:4}" || returnCode=1
                 fi
 
                 if (( returnCode == 1)); then
-                    echo "${cmdName} failed at $manifestPath" >&2
+                    echo "|   " >&2
+                    echo "|   command failed:" >&2
+                    echo "|   " >&2
+                    echo "|   ''${d}" >&2
+                    echo "|   ''${cmdPath} ''${manifestName} ''${*:4}" >&2
+                    echo "'   " >&2
                     return 1
+                else
+                    echo "|   " >&2
+                    echo "|   command succeeded" >&2
+                    echo "|   ''${d}" >&2
+                    echo "|   ''${cmdPath} ''${manifestName} ''${*:4}" >&2
+                    echo "'   " >&2
                 fi
             done
         }
@@ -96,7 +112,7 @@
 
         ${
           builtins.concatStringsSep " && \\\n" ((
-              map (manifest: ''run_cmd "${getCmd cmdName manifest.value}" "${manifest.name}" "$@"'') (manifestsForCmd cmdName)
+              map (manifest: ''run_cmd "$WORKDIR" "${getCmd cmdName manifest.value}" "${manifest.name}" "$@"'') (manifestsForCmd cmdName)
             )
             ++ ["EXIT_CODE=0"])
         }
@@ -154,22 +170,36 @@
       cd "$WORKDIR"
 
       glow <<-'EOF' >&2
-        # project-lint
+        # project-lint [ --changed | --all ]
         recurse through the working directory and subdirectories, linting all projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-lint"))}
 
         - use flag --changed to skip projects that have not changed in the latest commit
 
-        # project-lint-semver
+        # project-lint-semver [ --changed | --all ] [[FROM TO]]
         recurse through the working directory and subdirectories, validating the semantic version of projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-lint-semver"))}
 
-        - use flag --changed to skip projects that have not changed in the latest commit
+        - limit the range of commits to lint with [[FROM TO]]
+            - provide a pair of commit hashes semantic version commits between and including the two hashes
+            - omit the pair of commit hashes to lint from BASE to HEAD
+            - note: order matters! FROM should be a commit hash that is before TO, and both hashes should be on the same branch
+        - use flag --changed to omit projects who's manifest file has NOT changed in the directly preceding commit
 
-        # project-build
+        This command outputs a JSON-line-separated list of records, where each record contains a hash, path and version, a : e.g.
+
+            { "hash": 57b8f5ac4840b415dd3d4319d8e7493a4345eaef, "path": "path/to/project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
+            { "hash": 57b8f5ac4840b415dd3d4319d8e7493a4345eaef, "path": "path/to/other-project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
+            { "hash": 81268c1a87ef56822fc02ccfbb0621418964dc12, "path": "path/to/project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
+
+        - This list contains the version of every package in a manifest, at each commit in the linted range
+            - if you pass --changed, this list will only print the semantic versions of packages within manifests
+              that have changed in the current commit
+
+        # project-build [ --changed | --all ]
         recurse through the working directory and subdirectories, building projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-build"))}
 
         - use flag --changed to skip projects that have not changed in the latest commit
 
-        # project-test
+        # project-test [ --changed | --all ]
         recurse through the working directory and subdirectories, testing projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-test"))}
 
         - use flag --changed to skip projects that have not changed in the latest commit
@@ -178,7 +208,7 @@
         symlink the .vscode configuration folder into the root of this repository. Automatically run when this shell starts
 
         # project-install-zed-configuration
-        symlink the .zed configuration folder into the root ofthis repository. Automatically run when this shell starts
+        symlink the .zed configuration folder into the root of this repository. Automatically run when this shell starts
 
         ${builtins.concatStringsSep ''
 
@@ -364,6 +394,8 @@ in {inherit project-lint project-lint-semver project-build project-test default;
 #         runtimeInputs = [...];                                  # bins needed to run lint-semver commands
 #         text = ''
 #           ...                                                   # the lint-semver commands
+#                                                                 # this command must print json lines as follows:
+#                                                                 # [ "commit": "<full commit hash>", "path": "<path/to/manifest>", "version": "<MAJOR.MINOR.PATCH> | <MAJOR.MINOR> | <MAJOR> | null"]
 #         '';
 #       }
 #     )
@@ -409,4 +441,3 @@ in {inherit project-lint project-lint-semver project-build project-test default;
 # ```
 #
 # see parse-manifest-flake_nix.nix for an example
-
