@@ -33,7 +33,7 @@ name: Tag Main
 
 on:
   push:
-    branches: [main]
+    branches: [simplify-dev-config]
 
 jobs:
   tag-main:
