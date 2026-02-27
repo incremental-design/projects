@@ -46,7 +46,7 @@
       default = pkgs.stdenv.mkDerivation {
         name = "another";
         src = "../../"; # Include entire repo as source
-        version = "0.2";
+        version = "0.3.2";
 
         nativeBuildInputs = with pkgs; [
           coreutils
