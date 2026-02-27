@@ -28,15 +28,16 @@
           pkgs = import nixpkgs {inherit system;};
         });
   in {
-
     # https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
-    schemas = flake-schemas.schemas // {
+    schemas =
+      flake-schemas.schemas
+      // {
         nixVersion = {
-        version = 1;
-        doc = "The nix version required to run this flake";
-        type = "string";
+          version = 1;
+          doc = "The nix version required to run this flake";
+          type = "string";
         };
-    };
+      };
 
     # nixVersion specifies the nix version needed to run this flake
     nixVersion = "2.33.1";
@@ -45,7 +46,7 @@
       default = pkgs.stdenv.mkDerivation {
         name = "another";
         src = "../../"; # Include entire repo as source
-        version = "0.2";
+        version = "0.3.1";
 
         nativeBuildInputs = with pkgs; [
           coreutils
