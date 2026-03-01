@@ -17,7 +17,7 @@
 #   ./result/bin/commitlint --help
 #
 {pkgs ? import <nixpkgs> {}}: let
-  config = import ./commitlintConfig.nix {inherit pkgs;};
+  config = import ./commitlint-config.nix {inherit pkgs;};
   bin = pkgs.buildGoModule {
     # see https://nixos.org/manual/nixpkgs/stable/#ssec-language-go
 

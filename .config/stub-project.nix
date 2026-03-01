@@ -1,37 +1,47 @@
 {
   pkgs ? import <nixpkgs> {},
-  stubProjectConfigs ? (import ./importFromLanguageFolder.nix {inherit pkgs;}).importStubProject,
+  stubProjectConfigs ?
+    map (stubProjectNixDirent:
+      (import ./${stubProjectNixDirent.name} {inherit pkgs;})
+      // {
+        tools =
+          map (toolVersion: {
+            name = builtins.elemAt toolVersion 0;
+            version = builtins.elemAt toolVersion 2;
+          })
+          (
+            map
+            (toolVersion: (builtins.split "_v" toolVersion))
+            (builtins.split "-" (builtins.head (builtins.match "^stub-project-(.*).nix$" stubProjectNixDirent.name)))
+          );
+      })
+    (
+      import ./match-dirent.nix {
+        pkgs = pkgs;
+        from = ./.;
+        matchDirentName = name: (builtins.match "^stub-project-.*\.nix$" name) != null;
+        matchDirentType = type: (builtins.match "^regular$" type) != null;
+      }
+    ),
 }: let
-  validStubProjectConfigs = let
-    configs =
-      builtins.map (
-        projectConfig:
-          if builtins.isAttrs projectConfig && builtins.hasAttr "devShellName" projectConfig
-          then projectConfig
-          else builtins.throw "invalid projectConfig ${projectConfig}"
-      )
-      stubProjectConfigs;
-
-    # Check for duplicate devShellName values
-    names = builtins.map (config: config.devShellName) configs;
-    uniqueNames = pkgs.lib.unique names;
-
-    # Throw error if there are duplicates
-    c =
-      if builtins.length names != builtins.length uniqueNames
-      then builtins.throw "Duplicate dev shell name values found: ${builtins.toJSON names}"
-      else configs;
-  in
-    c;
+  validStubProjectConfigs =
+    builtins.map (
+      projectConfig:
+        if builtins.isAttrs projectConfig && builtins.hasAttr "tools" projectConfig
+        then projectConfig
+        else builtins.throw "invalid projectConfig ${projectConfig}"
+    )
+    stubProjectConfigs;
   wrapStubProject = stubProject: pkgs:
     pkgs.writeShellApplication {
-      name = "project-stub-" + stubProject.devShellName; # e.g. project-stub-nix project-stub-go
+      name = "project-stub-" + builtins.concatStringsSep "-" (builtins.map (tool: tool.name + "_v" + tool.version) stubProject.tools);
       meta = {
-        description = "Stub a " + stubProject.devShellName + " project";
+        description = "Stub a project with " + builtins.concatStringsSep ", " (builtins.map (tool: tool.name + "_v" + tool.version) stubProject.tools);
       };
       runtimeInputs = [
         pkgs.coreutils
         pkgs.fd
+        pkgs.gnugrep
         stubProject
       ];
       text = ''
@@ -47,9 +57,6 @@
         if [[ -z "$name" ]]; then
           echo "Error: Project name cannot be empty" >&2
           exit 1
-        elif [ -e "$name" ]; then
-          echo "$name already exists" >&2
-          exit 1
         elif [[ ! "$name" =~ ^[a-z][a-z\/-]*[a-z]$ ]]; then
           echo "Error: Project name '$name' must be at least two characters long. it must start and end with a lowercase alphabetical character. It can only contain alphabetical characters and -" >&2
           echo "Valid examples: my-project, hello-world, abc, a-b-c, my/project, my/project/a-b-c" >&2
@@ -61,28 +68,20 @@
         exit 1
         fi
 
+        # get path components out of name
+        IFS="/" read -ra path_components <<< "$name"
+
         # update the root dir gitignore
         if [ -f .gitignore ]; then
-        echo "!$name">>.gitignore
-        echo "!$name/**">>.gitignore
+          echo "!''${path_components[0]}">>.gitignore
+        echo "!''${path_components[0]}/**">>.gitignore
         fi
 
-        # locate the flake.nix at the root of the monorepo
-        FLAKE_DIR="../"
+        FLAKE_DIR=""
 
-        seekToRoot(){
-          local parent
-          parent=$(dirname "$(realpath "$*")")
-
-          if [ -d .git ]; then
-            return
-          else
-            FLAKE_DIR="$FLAKE_DIR../"
-            seekToRoot "$parent"
-          fi
-        }
-
-        seekToRoot "$(pwd)"
+        for (( i=0; i<''${#path_components[@]}; i++ )); do
+            FLAKE_DIR="''${FLAKE_DIR}../"
+        done
 
         # add default readme and contribute
         cat <<-EOF > "$name/README.md"
@@ -173,30 +172,42 @@
         -->
         EOF
 
-        cat <<-EOF > "$name/.envrc"
-        use flake "$FLAKE_DIR#${stubProject.devShellName}"
-        EOF
-
         # run the stubProject command, pass in the $name of the project and the $FLAKE_DIR
         stubProject "$name" "$FLAKE_DIR"
 
-        cat <<-'EOF' >"$name/.gitignore"
-        # ignore all
-        *
+        for (( i=0; i<''${#path_components[@]}; i++)); do
 
-        # and then whitelist what you want to track
+            IFS="/"
+            CURR_PC="''${path_components[*]:0:''$((i+1))}"
+
+            if [ ! -s "''${CURR_PC}/.gitignore" ]; then
+                cat <<-'EOF' >"''${CURR_PC}/.gitignore"
+                # ignore all
+                *
+
+                # and then whitelist what you want to track
         EOF
+            fi
 
-        # Whitelist files
-        while read -r filename; do
-            echo "!$filename" >> "$name/.gitignore"
-        done < <(fd --type f --max-depth 1 . "$name" --no-ignore --hidden --exec basename {} \;)
+            # Whitelist files
+            while read -r filename; do
+                if ! grep -Fxq "!$filename" "''${CURR_PC}/.gitignore"; then
+                    echo "!$filename" >> "''${CURR_PC}/.gitignore"
+                fi
+            done < <(fd --type f --max-depth 1 . "$CURR_PC" --no-ignore --hidden --exec basename {} \;)
 
-        # Whitelist directories and their contents
-        while read -r dirname; do
-            echo "!$dirname" >> "$name/.gitignore"
-            echo "!$dirname/**" >> "$name/.gitignore"
-        done < <(fd --type d --max-depth 1 . "$name" --no-ignore --hidden --exec basename {} \;)
+            # Whitelist directories and their contents
+            while read -r dirname; do
+                if ! grep -Fxq "!$dirname" "''${CURR_PC}/.gitignore"; then
+                    echo "!$dirname" >> "''${CURR_PC}/.gitignore"
+                fi
+                if ! grep -Fxq "!$dirname/**" "''${CURR_PC}/.gitignore"; then
+                    echo "!$dirname/**" >> "''${CURR_PC}/.gitignore"
+                fi
+            done < <(fd --type d --max-depth 1 . "$CURR_PC" --no-ignore --hidden --exec basename {} \;)
+        done
+
+
 
       '';
     };
@@ -206,24 +217,13 @@
 in
   stubProjects
 #
-# LANGUAGE-SPECIFIC PROJECT TEMPLATES
+# PROJECT TEMPLATES
 #
-# This nix expression builds a script that stubs a different
-# project for each language-* folder
+# This nix expression builds a script that stubs projects
 #
-# each project in this monorepo is created by exactly ONE
-# language-*/stubProject.nix
-# i.e.
 #
-#   nix project ......... language-nix/stubProject.nix
-#
-#   go project  ......... language-go/stubProject.nix
-#
-#   typescript            language-typescript/
-#   project     ......... stubProject.nix
-#
-# each stubProject script creates the files and folders
-# you need to work in the project's respective language
+# each stubProject script creates the project manifests
+# you need to work in a project.
 #
 # projects/
 #   |-- flake.nix <------.
@@ -231,42 +231,30 @@ in
 #   |                 imports
 #   '-- .config/         |
 #       |                |
-#       |- stubProject.nix <----------,
-#       |                             |
-#       |                          imports
-#       |                             |
-#       |- importFromLanguageFolder.nix <----------,
-#       :                                          |
-#       :                                       imports
-#       :                                          |
-#       |                               -,         |
-#       |-- language-nix/                |         |
-#       |   |                            |         |
-#       |   :                            |         |
-#       |   |                            |         |
-#       |   '-- stubProject.nix          |         |
-#       |                                |         |
-#       |-- language-go/                 |         |
-#       |   |                            +---------'
-#       |   :                            |
-#       |   |                            |
-#       |   '-- stubProject.nix          |
-#       |                                |
-#       '-- language-typescript/         |
-#           |                            |
-#           '-- stubProject.nix          |
-#                                       -'
+#       |- stub-project.nix <-------------------------------------,
+#       |                                                         |
+#       |                                                      imports
+#       |                                                 -,      |
+#       |- stub-project-nix_v2.33.1.nix                    |      |
+#       |                                                  |      |
+#       |- stub-project-go_v1.26.0.nix                     |      |
+#       |                                                  +------'
+#       |- stub-project-deno_v2.6.9.nix                    |
+#       |                                                  |
+#       |- stub-project-<tool>_v<MAJOR.MINOR.PATCH>.nix    |
+#       |                                                 -'
+#       :
+#
 #
 # the root flake provides one project-stub-* command
-# for each language
+# for each <tool>_v<MAJOR.MINOR.PATCH>
 # i.e.
 #
-# project-stub-nix --- creates ---> nix project
+# project-stub-nix_v2.33.1 --- creates ---> nix project
 #
-# project-stub-go  --- creates ---> go project
+# project-stub-go_v1.26.0  --- creates ---> go project
 #
-# project-stub     --- creates ---> typescript
-# -typescript                       project
+# project-stub-deno_v2.6.9 --- creates ---> deno project
 #
 # each project-stub-* command updates the
 # monorepo as follows:
@@ -291,13 +279,11 @@ in
 #   |
 #   '- name-of-project/     <-- create new project folder
 #       |
-#       |- .envrc           <-- load dev shell from root flake.nix
-#       |
 #       |- README.md        <-- template for a README
 #       |
 #       |- CONTRIBUTE.md    <-- template for a CONTRIBUTE
 #       |
-#       '- ...              <-- any language-specific files
+#       '- ...              <-- any project-specific manifest files (e.g. deno.json, go.mod, flake.nix)
 #
 # WHY PROJECT TEMPLATES
 #

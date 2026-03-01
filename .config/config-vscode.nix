@@ -1,6 +1,14 @@
 {
   pkgs ? import <nixpkgs> {},
-  vscodeConfigs ? (import ./importFromLanguageFolder.nix {inherit pkgs;}).importConfigVscode,
+  vscodeConfigs ?
+    map (configVscodeDirent: (import ./${configVscodeDirent.name} {inherit pkgs;})) (
+      import ./match-dirent.nix {
+        pkgs = pkgs;
+        from = ./.;
+        matchDirentName = name: (builtins.match "^config-vscode-.*\.nix$" name) != null;
+        matchDirentType = type: (builtins.match "^regular$" type) != null;
+      }
+    ),
 }: let
   validVscodeConfigs = builtins.map (vsc:
     if
@@ -83,10 +91,9 @@
   };
 in
   project-install-vscode-configuration
-# HOW TO SET UP A LANGUAGE-SPECIFIC VSCODE CONFIGURATION
+# HOW TO SET UP A TOOL-SPECIFIC VSCODE CONFIGURATION
 #
-# Each language-specific folder contains a configVscode.nix. This
-# nix file must contain the following nix expression:
+# create a config-vscode-<name-of-tool>.nix in this directory, with the following:
 #
 # { pkgs ? import <nixpkgs> {} }: {
 #   vscodeSettings = {
@@ -120,11 +127,11 @@ in
 #   };
 # }
 #
-# this configVscode.nix merges the contents of all language-specific configVscode.nix:
+# this config-vscode.nix merges the contents of all config-vscode-<tool>.nix:
 #
 #      ________________________               ________________________
-#     / .vscode/               |             / language-*             |
-#    /  settings.json          |            /  configVscode.nix       |
+#     / .vscode/               |             / config-vscode-         |
+#    /  settings.json          |            /  <tool>.nix             |
 #    | ----------------------- |            | ----------------------- |
 #    | {                       |            | vscodeSettings = {      |
 #    |   "nix.enable": true,<---- merged ------  "nix.enable" = true; |

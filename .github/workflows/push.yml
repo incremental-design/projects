@@ -99,7 +99,7 @@ jobs:
       - name: Build lintCommit from Nix
         run: |
           # Build the lintCommit tool from the Nix expression
-          nix-build .config/lintCommit.nix
+          nix-build .config/lint-commit.nix
 
       - name: Lint Commit Messages
         id: lint-commit-messages
@@ -131,8 +131,7 @@ jobs:
             git log -1 --pretty=%B "$commit" > commit_message.txt
             ./result/bin/lintCommit commit_message.txt
 
-            echo "✅ Commit $commit passed validation"
-            echo ""
+            echo "✅ Commit $commit passed validation" >&2
           done
 
   # Semantic version validation job
@@ -146,58 +145,21 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Build recurse.nix script with project-lint-semver step only
-        run: |
-          # Get nixpkgs directly from flake inputs
-          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint-semver"]'
-
       - name: Lint semantic versions for each commit
         run: |
           # Exit at first failure
           set -e
 
-          # we have to lint semantic versions at EVERY commit in a push
-          # to ensure that projects that were DELETED between base and
-          # HEAD have valid semantic versions
+          # project lint semver command already iterates from HEAD all the way to BASE,
+          # accumulating packages that may have been deleted along the way. No need to
+          # iterate backward through commits here.
 
-          # Get all commits from GitHub event
-          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '(. // []) | .[].id')
-
-          # Handle empty pushes
-          if [[ -z "$COMMITS" ]]; then
-            echo "No commits to validate"
-            exit 0
+          if ! nix develop --command project-lint-semver --all; then
+              echo "❌ Commit $commit failed project-lint-semver" >&2
+              exit 1
+            else
+              echo "✅ Commit $commit passed project-lint-semver" >&2
           fi
-
-          # Loop through each commit
-          for commit in $COMMITS; do
-            echo "============================================================"
-            echo "🔍 Linting semantic versions: $commit"
-            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
-            echo "📅 Date: $(git log -1 --pretty=%ad --date=iso $commit)"
-            echo "🧑‍💻 Author: $(git log -1 --pretty=%an $commit)"
-            echo "============================================================"
-
-            # Check out this specific commit
-            git checkout -q $commit
-
-            # Run the recurse script which will lint semantic versions
-            echo "🔍 Running semantic version validation on projects..."
-            temp_stderr=$(mktemp)
-            ./result/bin/recurse 2>"$temp_stderr"
-            exit_code=$?
-            while IFS= read -r line; do
-              echo "        $line" >&2
-            done < "$temp_stderr"
-            rm "$temp_stderr"
-            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
-
-            echo "✅ Commit $commit passed semantic version validation"
-            echo ""
-          done
-
-          # Return to the original branch/commit
-          git checkout -q ${{ github.sha }}
 
   # Lint job - only needs to run on one platform since it's not platform-specific
   lint-projects:
@@ -212,11 +174,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Build recurse.nix script with project-lint step only
-        run: |
-          # Get nixpkgs directly from flake inputs
-          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-lint"]'
 
       - name: Lint each commit
         run: |
@@ -244,23 +201,13 @@ jobs:
             # Check out this specific commit
             git checkout -q $commit
 
-            # Run the recurse script which will lint
-            echo "🔍 Running lint on projects..."
-            temp_stderr=$(mktemp)
-            ./result/bin/recurse 2>"$temp_stderr"
-            exit_code=$?
-            while IFS= read -r line; do
-              echo "        $line" >&2
-            done < "$temp_stderr"
-            rm "$temp_stderr"
-            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
-
-            echo "✅ Commit $commit passed project linting"
-            echo ""
+            if ! nix develop --command project-lint --changed; then
+              echo "❌ Commit $commit failed project-lint" >&2
+              exit 1
+            else
+              echo "✅ Commit $commit passed project-lint" >&2
+            fi
           done
-
-          # Return to the original branch/commit
-          git checkout -q ${{ github.sha }}
 
   # Build and test job - needs to run on all platforms
   build-test:
@@ -293,11 +240,6 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Build recurse.nix script with project-build and project-test steps
-        run: |
-          # Get nixpkgs directly from flake inputs
-          nix-build .config/recurse.nix --arg pkgs "import (builtins.getFlake \"path:$(pwd)\").inputs.nixpkgs {}" --arg steps '["project-build" "project-test"]'
-
       - name: Build and test each commit
         run: |
           # Exit at first failure
@@ -324,20 +266,19 @@ jobs:
             # Check out this specific commit
             git checkout -q $commit
 
-            # Run the recurse script which will build and test
             echo "🏗️ Running build and test on ${{ matrix.platform }}..."
-            temp_stderr=$(mktemp)
-            ./result/bin/recurse 2>"$temp_stderr"
-            exit_code=$?
-            while IFS= read -r line; do
-              echo "        $line" >&2
-            done < "$temp_stderr"
-            rm "$temp_stderr"
-            if [ $exit_code -ne 0 ]; then exit $exit_code; fi
 
-            echo "✅ Commit $commit passed build and test on ${{ matrix.os-name }} (${{ matrix.platform }})"
-            echo ""
+            if ! (nix develop --command project-build --changed); then
+              echo "❌ Commit $commit failed project-build on ${{ matrix.os-name }} (${{ matrix.platform }}" >&2
+              exit 1
+            else
+              echo "✅ Commit $commit passed project-build on ${{ matrix.os-name }} (${{ matrix.platform }}" >&2
+            fi
+
+            if ! (nix develop --command project-test --changed); then
+              echo "❌ Commit $commit failed project-test on ${{ matrix.os-name }} (${{ matrix.platform }}" >&2
+              exit 1
+            else
+              echo "✅ Commit $commit passed project-test on ${{ matrix.os-name }} (${{ matrix.platform }}" >&2
+            fi
           done
-
-          # Return to the original branch/commit
-          git checkout -q ${{ github.sha }}
