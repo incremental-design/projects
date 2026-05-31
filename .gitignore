@@ -10,3 +10,7 @@
 !flake.lock
 !LICENSE
 !README.md
+!infrastructure
+!infrastructure/**
+!infrastructure
+!infrastructure/**
