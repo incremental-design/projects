@@ -43,6 +43,7 @@
   # Flake inputs
   inputs = {
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.0";
+    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*";
   };
 
@@ -84,8 +85,35 @@
         nixVersion = {
           version = 1;
           doc = "The nix version required to run this flake";
-          inventory = output: {
-            children = {};
+          inventory = output: let
+            errNotString = output:
+              if !builtins.isString output
+              then throw "nixVersion not of type string"
+              else output;
+            match = output: builtins.match "([1-9][0-9]*)\.?([1-9][0-9]*)?\.?([1-9][0-9]*)?" output;
+            errNotSemver = match:
+              if match == null
+              then throw "nixVersion not a semantic version: got ${output}"
+              else match;
+            semver = match:
+              {}
+              // (
+                if builtins.length match >= 1
+                then {major = {what = builtins.elemAt match 0;};}
+                else {}
+              )
+              // (
+                if builtins.length match >= 2
+                then {minor = {what = builtins.elemAt match 1;};}
+                else {}
+              )
+              // (
+                if builtins.length match >= 3
+                then {patch = {what = builtins.elemAt match 2;};}
+                else {}
+              );
+          in {
+            children = semver (errNotSemver (match (errNotString output)));
           };
         };
       };
