@@ -42,15 +42,13 @@
 
   # Flake inputs
   inputs = {
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.0";
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*";
   };
 
   # Flake outputs that other flakes can use
   outputs = {
     flake-schemas,
-    flake-utils,
     nixpkgs,
     ...
   }: let
@@ -62,8 +60,24 @@
           pkgs = import nixpkgs {inherit system;};
         });
   in {
-    # Schemas tell Nix about the structure of your flake's outputs
-    # https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
+    # Schemas validate the shape of the attrs in outputs {} when you run `nix flake check`
+    #     _________________
+    #    /  flake.nix      |
+    #   /                  |                                _________
+    #   |  outputs = {     |                               /         |
+    #   |   apps = {...};                                  | flake   |
+    #   |   bundlers = {...};  ------ nix flake check -----> schemas |
+    #   |   checks = {...};                                |         |
+    #   |   ...            |                               |_________|
+    #   |  }               |
+    #   |__________________|
+    #
+    # add your own schemas when you need to add extra attributes to your flake that don't
+    # match any of the well-known flake attributes
+    #
+    # see well-known flake attrs: https://github.com/DeterminateSystems/flake-schemas/blob/main/flake.nix
+    #
+    # learn how to extend the schema definitions: https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
     schemas = flake-schemas.schemas // {
       nixVersion = {
         version = 1;
