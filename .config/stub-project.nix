@@ -129,7 +129,7 @@
         <!--
         List the methods or modules your project provides.
         -->
-        ## How Project Name works:
+        ## How $name works:
         <!--
         Explain how execution works. What is the entry point for your code? Which files correspond to which functionality? What is the lifecycle of your project? Are there any singletons, side effects or shared state among instances of your project? Take extra care to explain design decisions. After all, you wrote an ENTIRE codebase around your opinions. Make sure that the people using it understand them.
         -->
@@ -358,4 +358,3 @@ in
 #   7. creates a .gitignore and adds all stubbed
 #      project files to it
 #
-
