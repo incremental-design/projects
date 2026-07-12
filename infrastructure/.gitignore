@@ -7,3 +7,4 @@
 !macos/**
 !flake.nix
 !flake.lock
+!install.nix
