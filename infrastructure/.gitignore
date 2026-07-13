@@ -8,3 +8,4 @@
 !flake.nix
 !flake.lock
 !install.nix
+!README.md
