@@ -22,7 +22,7 @@
   };
   outputs = {
     flake-utils,
-    # nixpkgs,
+    nixpkgs,
     projects-flake,
     ...
   }: let
@@ -51,12 +51,11 @@
       };
     }
     // flake-utils.lib.eachSystem supportedSystems (
-      system:
-      # let
-      #   pkgs = import nixpkgs { inherit system; };
-      # in
-      {
+      system: let
+        pkgs = import nixpkgs {inherit system;};
+      in {
         packages = {
+          install = pkgs.callPackage ./install.nix {};
         };
       }
     );
