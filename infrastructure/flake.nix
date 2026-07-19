@@ -6,12 +6,14 @@
       |
       |- macos/
       |   |
-      |   '- system/              # configures systemwide packages, daemons, services
-      |                           # and applications for all users
+      |   '- system/                  # configures systemwide packages, daemons, services
+      |       |                       # and applications for all users
+      |       |
+      |       '- template/flake.nix   # template to copy into /var/root to configure nix-
+      |                               # darwin
       |
-      |
-      '- flake.nix                # root flake that contains setup-host script, re-
-                                  # exports modules for MacOS, NixOS
+      '- flake.nix                    # root flake that contains setup-host script, re-
+                                      # exports modules for MacOS, NixOS
   '';
   inputs = {
     flake-utils.url = "github:numtide/flake-utils"; # support eachSystem fan-out. see: https://github.com/numtide/flake-utils#eachsystem--system---system---attrs
@@ -40,6 +42,12 @@
         do-not-manage-shells = import ./macos/system/do-not-manage-shells.nix;
         packages = import ./macos/system/packages.nix;
         security = import ./macos/system/security.nix;
+      };
+      templates = {
+        macos = {
+          path = ./macos/system/template;
+          description = "darwin configuration template for macOS";
+        };
       };
     }
     // flake-utils.lib.eachSystem supportedSystems (

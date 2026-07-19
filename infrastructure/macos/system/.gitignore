@@ -1,0 +1,10 @@
+*
+
+!.gitignore
+!darwin.nix
+!do-not-manage-nix.nix
+!do-not-manage-shells.nix
+!packages.nix
+!security.nix
+!template
+!template/**
