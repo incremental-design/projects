@@ -50,6 +50,24 @@
         "type": "github"
       }
     },
+    "flake-utils_3": {
+      "inputs": {
+        "systems": "systems_3"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "infrastructure": {
       "inputs": {
         "flake-utils": "flake-utils_2",
@@ -58,17 +76,16 @@
       },
       "locked": {
         "dir": "infrastructure",
-        "lastModified": 1784080194,
-        "narHash": "sha256-gXX7ek2ofAJymehSSv6GVnZAbcbzJgxnRYNaEzaCNz0=",
+        "lastModified": 1784512807,
+        "narHash": "sha256-YAUOM/BX0VhbdFgPGB9U15g1qCN4o9cQMVuv6ivRIGs=",
         "owner": "incremental-design",
         "repo": "projects",
-        "rev": "ec804c98f7ed3aae4cdb2232f50b3dd0a6379725",
+        "rev": "825f9ecf174865655390c3049ba05545155df3e7",
         "type": "github"
       },
       "original": {
         "dir": "infrastructure",
         "owner": "incremental-design",
-        "ref": "make-infrastructure-darwin-install",
         "repo": "projects",
         "type": "github"
       }
@@ -128,12 +145,12 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1755615617,
-        "narHash": "sha256-HMwfAJBdrr8wXAkbGhtcby1zGFvs+StOp19xNsbqdOg=",
-        "rev": "20075955deac2583bb12f07151c2df830ef346b4",
-        "revCount": 846535,
+        "lastModified": 1784007870,
+        "narHash": "sha256-djcLt/JJphyNt4eDY9XTly+/WbCK5lqWq9lSgCmJkkQ=",
+        "rev": "18b9261cb3294b6d2a06d03f96872827b8fe2698",
+        "revCount": 1034379,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.1.846535%2Brev-20075955deac2583bb12f07151c2df830ef346b4/0198c7b8-5e15-730c-959e-40cbb5fe01b3/source.tar.gz"
+        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.1.1034379%2Brev-18b9261cb3294b6d2a06d03f96872827b8fe2698/019f6132-7d6a-7801-abb1-b4bf03703a37/source.tar.gz"
       },
       "original": {
         "type": "tarball",
@@ -159,6 +176,7 @@
     "projects-flake": {
       "inputs": {
         "flake-schemas": "flake-schemas",
+        "flake-utils": "flake-utils_3",
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
@@ -198,6 +216,21 @@
       }
     },
     "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_3": {
       "locked": {
         "lastModified": 1681028828,
         "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",

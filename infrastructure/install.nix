@@ -253,7 +253,7 @@ pkgs.writeShellApplication {
         then
             CMD="nix_darwin_switch"
         else
-            echo "failed to run \"nix flake init -t 'github:incremental-design/projects?ref=make-infrastructure-darwin-install&dir=infrastructure#macos'\"" >&2
+            echo "failed to run \"nix flake init -t 'github:incremental-design/projects?dir=infrastructure#macos'\"" >&2
             EXIT=1
             if [ -f "/var/root/flake.nix.old" ]; then
                 CMD="restore_darwin_flake"
