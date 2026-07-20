@@ -3,7 +3,7 @@
     nix-darwin configuration
   '';
   inputs = {
-    infrastructure.url = "github:incremental-design/projects?ref=make-infrastructure-darwin-install&dir=infrastructure"; # path to flake containing darwin modules
+    infrastructure.url = "github:incremental-design/projects?dir=infrastructure"; # path to flake containing darwin modules
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05"; # pin to nixpkgs 26.05
     flake-utils.url = "github:numtide/flake-utils"; # support eachSystem fan-out. see: https://github.com/numtide/flake-utils#eachsystem--system---system---attrs
     nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin"; # pin to nixpkgs 26.05 for MacOS
