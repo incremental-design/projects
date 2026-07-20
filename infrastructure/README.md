@@ -14,14 +14,14 @@ This flake contains all of the templates and helper scripts used to provision Ma
 
 1. Install [nix](https://determinate.systems/nix/)
 
-2. `sudo -H nix run "github:incremental-design/projects?dir=infrastructure#setup-host" --extra-experimental-features "nix-command flakes" -- --hostname <hostname>` where
+2. `sudo -H nix run "github:incremental-design/projects?dir=infrastructure#install" --extra-experimental-features "nix-command flakes" -- --hostname <hostname>` where
   * `<hostname>` is the [hostname of your system](https://nix-darwin.github.io/nix-darwin/manual/#opt-networking.hostName) 
 
 3. Reboot your computer.
 
 #### Uninstallation
 
-1. `nix run "github:incremental-design/projects?dir=infrastructure#setup-host" --extra-experimental-features "nix-command flakes" -- --uninstall`
+1. `nix run "github:incremental-design/projects?dir=infrastructure#install" --extra-experimental-features "nix-command flakes" -- --uninstall`
 
 2. Reboot your computer.
 
