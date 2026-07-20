@@ -247,7 +247,7 @@ pkgs.writeShellApplication {
             macos_system_arch='macos_system_arch = "x86_64-darwin";'
         fi
 
-        if nix flake init -t "github:incremental-design/projects?ref=make-infrastructure-darwin-install&dir=infrastructure#macos" && \
+        if nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos" && \
            sed -i "" "s|macos_system_arch = \"aarch64-darwin\";|''${macos_system_arch}|g" "/var/root/flake.nix" && \
            sed -i "" "s|# networking.hostName|networking.hostName = \"''${HOSTNAME}\";|g" "/var/root/flake.nix";
         then
