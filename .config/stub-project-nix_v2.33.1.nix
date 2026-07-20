@@ -117,12 +117,12 @@ pkgs.writeShellApplication {
     EOT
 
     # stage flake.nix so Nix can see it
-    git -C "$PROJECT_DIR" add flake.nix
+    git -C "$PROJECT_DIR" add -f flake.nix
 
     # generate flake.lock for reproducibility
     (cd "$PROJECT_DIR" && nix flake update)
 
     # stage all project files
-    git -C "$PROJECT_DIR" add .
+    git -C "$PROJECT_DIR" add -f .
   '';
 }

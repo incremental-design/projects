@@ -42,8 +42,8 @@
 
   # Flake inputs
   inputs = {
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
-
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.0";
+    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*";
   };
 
@@ -61,15 +61,62 @@
           pkgs = import nixpkgs {inherit system;};
         });
   in {
-    # Schemas tell Nix about the structure of your flake's outputs
-    # https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
-    schemas = flake-schemas.schemas // {
-      nixVersion = {
-        version = 1;
-        doc = "The nix version required to run this flake";
-        type = "string";
+    # Schemas validate the shape of the attrs in outputs {} when you run `nix flake check`
+    #     _________________
+    #    /  flake.nix      |
+    #   /                  |                                _________
+    #   |  outputs = {     |                               /         |
+    #   |   apps = {...};                                  | flake   |
+    #   |   bundlers = {...};  ------ nix flake check -----> schemas |
+    #   |   checks = {...};                                |         |
+    #   |   ...            |                               |_________|
+    #   |  }               |
+    #   |__________________|
+    #
+    # add your own schemas when you need to add extra attributes to your flake that don't
+    # match any of the well-known flake attributes
+    #
+    # see well-known flake attrs: https://github.com/DeterminateSystems/flake-schemas/blob/main/flake.nix
+    #
+    # learn how to extend the schema definitions: https://determinate.systems/blog/flake-schemas/#defining-your-own-schemas
+    schemas =
+      flake-schemas.schemas
+      // {
+        nixVersion = {
+          version = 1;
+          doc = "The nix version required to run this flake";
+          inventory = output: let
+            errNotString = output:
+              if !builtins.isString output
+              then throw "nixVersion not of type string"
+              else output;
+            match = output: builtins.match "([1-9][0-9]*)\.?([1-9][0-9]*)?\.?([1-9][0-9]*)?" output;
+            errNotSemver = match:
+              if match == null
+              then throw "nixVersion not a semantic version: got ${output}"
+              else match;
+            semver = match:
+              {}
+              // (
+                if builtins.length match >= 1
+                then {major = {what = builtins.elemAt match 0;};}
+                else {}
+              )
+              // (
+                if builtins.length match >= 2
+                then {minor = {what = builtins.elemAt match 1;};}
+                else {}
+              )
+              // (
+                if builtins.length match >= 3
+                then {patch = {what = builtins.elemAt match 2;};}
+                else {}
+              );
+          in {
+            children = semver (errNotSemver (match (errNotString output)));
+          };
+        };
       };
-    };
 
     # nixVersion specifies the nix version needed to run this flake
     nixVersion = "2.33.1";
@@ -1361,3 +1408,4 @@
 # • builtins.toJSON converts Nix data to JSON strings
 # • pkgs.formats.yaml.generate converts Nix attribute sets to YAML
 #
+

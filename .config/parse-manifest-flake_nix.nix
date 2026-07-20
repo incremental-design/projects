@@ -70,7 +70,7 @@
               fi
               alejandra "''${changed[@]}" "''${ARGS[@]}" || exit 1
           else
-            alejandra "''${PWD}/*" "''${ARGS[@]}" || exit 1
+            alejandra "''${PWD}" "''${ARGS[@]}" || exit 1
           fi
         '';
       })

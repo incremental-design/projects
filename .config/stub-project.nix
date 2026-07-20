@@ -50,6 +50,11 @@
             exit 1
         fi
 
+        if ! [ -f .gitignore ]; then
+            echo ".gitignore missing from root of repository" >&2
+            exit 1
+        fi
+
         echo "enter project name" >&2
         read -r name
 
@@ -72,9 +77,11 @@
         IFS="/" read -ra path_components <<< "$name"
 
         # update the root dir gitignore
-        if [ -f .gitignore ]; then
-          echo "!''${path_components[0]}">>.gitignore
-        echo "!''${path_components[0]}/**">>.gitignore
+        if ! grep -Fxq "!''${path_components[0]}" ".gitignore"; then
+            echo "!''${path_components[0]}" >> ".gitignore"
+        fi
+        if ! grep -Fxq "!''${path_components[0]}/**" ".gitignore"; then
+            echo "!''${path_components[0]}/**" >> ".gitignore"
         fi
 
         FLAKE_DIR=""
@@ -122,7 +129,7 @@
         <!--
         List the methods or modules your project provides.
         -->
-        ## How Project Name works:
+        ## How $name works:
         <!--
         Explain how execution works. What is the entry point for your code? Which files correspond to which functionality? What is the lifecycle of your project? Are there any singletons, side effects or shared state among instances of your project? Take extra care to explain design decisions. After all, you wrote an ENTIRE codebase around your opinions. Make sure that the people using it understand them.
         -->
@@ -182,10 +189,10 @@
 
             if [ ! -s "''${CURR_PC}/.gitignore" ]; then
                 cat <<-'EOF' >"''${CURR_PC}/.gitignore"
-                # ignore all
-                *
+        # ignore all
+        *
 
-                # and then whitelist what you want to track
+        # and then whitelist what you want to track
         EOF
             fi
 

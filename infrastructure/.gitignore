@@ -1,0 +1,11 @@
+# ignore all
+*
+
+# and then whitelist what you want to track
+!.gitignore
+!macos
+!macos/**
+!flake.nix
+!flake.lock
+!install.nix
+!README.md
