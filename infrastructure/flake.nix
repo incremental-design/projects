@@ -6,11 +6,16 @@
       |
       |- macos/
       |   |
-      |   '- system/                  # configures systemwide packages, daemons, services
-      |       |                       # and applications for all users
+      |   |- system/                  # configures systemwide packages, daemons, services
+      |   |   |                       # and applications for all users
+      |   |   |
+      |   |   '- template/flake.nix   # template to copy into /var/root to configure nix-
+      |   |                           # darwin
+      |   |
+      |   '- home/                    # configures ~/ dotfiles, per-user applications,
+      |       |                       # login shell, login agents
       |       |
-      |       '- template/flake.nix   # template to copy into /var/root to configure nix-
-      |                               # darwin
+      |       '- template/flake.nix   # template to copy into ~/ to configure home manager
       |
       '- flake.nix                    # root flake that contains setup-host script, re-
                                       # exports modules for MacOS, NixOS
@@ -43,6 +48,9 @@
         packages = import ./macos/system/packages.nix;
         security = import ./macos/system/security.nix;
       };
+      homeModules = {
+        hm_macos = import ./macos/home/hm.nix;
+      };
       templates = {
         macos = {
           path = ./macos/system/template;
@@ -55,6 +63,9 @@
         pkgs = import nixpkgs {inherit system;};
       in {
         packages = {
+          # pkgs.callPackage expands to
+          # (import ./install.nix { pkgs.writeShellApplication, pkgs.coreutils, pkgs.gnused, pkgs.glow } // {})
+          # where // {} is any overrides to pkg in pkgs or additional attrs not defined in pkgs
           install = pkgs.callPackage ./install.nix {};
         };
       }
