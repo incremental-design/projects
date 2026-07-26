@@ -264,8 +264,31 @@ writeShellApplication {
 
         if [ "$SUBCOMMAND" = "system" ]; then
 
+            function restore_system_flake_lock(){
+                if ! mv "''${PWD}/flake.lock.old" "''${PWD}/flake.lock"; then
+                    echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
+                    return 1
+                fi
+            }
+
+            function restore_system_flake(){
+                if ! mv "''${PWD}/flake.nix.old" "''${PWD}/flake.nix"; then
+                    echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
+                    return 1
+                fi
+            }
+
+
             if [ -f "./flake.nix" ] && ! mv "./flake.nix" "./flake.nix.old"; then
                 echo "could not back up ''${PWD}/flake.nix to ''${PWD}/flake.nix.old" >&2
+                exit 1
+            fi
+
+            if [ -f "./flake.lock" ] && ! mv "./flake.lock" "./flake.lock.old"; then
+                echo "could not back up ''${PWD}/flake.lock to ''${PWD}/flake.lock.old" >&2
+
+                restore_system_flake
+
                 exit 1
             fi
 
@@ -281,9 +304,7 @@ writeShellApplication {
             then
                 echo "could not init \"https://github.com/incremental-design/projects/blob/main/infrastructure/macos/system/template/flake.nix\" into ''${PWD}/flake.nix" >&2
 
-                if ! mv "''${PWD}/flake.nix.old" "''${PWD}/flake.nix"; then
-                echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
-                fi
+                restore_system_flake && restore_system_flake_lock
 
                 exit 1
             fi
@@ -298,9 +319,7 @@ writeShellApplication {
             then
                 echo "failed to \`nix run nix-darwin/nix-darwin-26.05#darwin-rebuild -- switch\`" >&2
 
-                if ! mv "''${PWD}/flake.nix.old" "''${PWD}/flake.nix"; then
-                echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
-                fi
+                restore_system_flake && restore_system_flake_lock
 
                 exit 1
             fi
