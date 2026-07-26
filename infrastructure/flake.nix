@@ -55,6 +55,9 @@
         pkgs = import nixpkgs {inherit system;};
       in {
         packages = {
+          # pkgs.callPackage expands to
+          # (import ./install.nix { pkgs.writeShellApplication, pkgs.coreutils, pkgs.gnused, pkgs.glow } // {})
+          # where // {} is any overrides to pkg in pkgs or additional attrs not defined in pkgs
           install = pkgs.callPackage ./install.nix {};
         };
       }

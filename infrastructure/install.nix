@@ -1,5 +1,11 @@
-{pkgs, ...}:
-pkgs.writeShellApplication {
+{
+  writeShellApplication,
+  coreutils,
+  gnused,
+  glow,
+  ...
+}:
+writeShellApplication {
   name = "install";
   meta = {
     description = ''
@@ -93,7 +99,7 @@ pkgs.writeShellApplication {
       nothing yet - not implemented
     '';
   };
-  runtimeInputs = with pkgs; [
+  runtimeInputs = [
     coreutils
     gnused
     glow
