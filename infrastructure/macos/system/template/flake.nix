@@ -5,7 +5,6 @@
   inputs = {
     infrastructure.url = "github:incremental-design/projects?dir=infrastructure"; # path to flake containing darwin modules
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05"; # pin to nixpkgs 26.05
-    flake-utils.url = "github:numtide/flake-utils"; # support eachSystem fan-out. see: https://github.com/numtide/flake-utils#eachsystem--system---system---attrs
     nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin"; # pin to nixpkgs 26.05 for MacOS
     nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-26.05"; # support nix-darwin.lib.darwinSystem
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs-darwin"; # inject pinned nixpkgs into nix darwin
