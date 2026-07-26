@@ -276,7 +276,7 @@ writeShellApplication {
             fi
 
             if ! nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos" && \
-                sed -i "s|macos_system_arch = \"aarch64-darwin\";|''${MACOS_SYSTEM_ARCH}|g" "/var/root/flake.nix" && \
+                sed -i "s|system = \"aarch64-darwin\";|''${MACOS_SYSTEM_ARCH}|g" "/var/root/flake.nix" && \
                 sed -i "s|# networking.hostName|networking.hostName = \"''${SYSTEM_HOSTNAME}\";|g" "/var/root/flake.nix";
             then
                 echo "could not init \"https://github.com/incremental-design/projects/blob/main/infrastructure/macos/system/template/flake.nix\" into ''${PWD}/flake.nix" >&2
