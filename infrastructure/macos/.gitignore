@@ -5,3 +5,5 @@
 !.gitignore
 !system
 !system/**
+!home
+!home/**

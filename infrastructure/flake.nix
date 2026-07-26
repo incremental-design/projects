@@ -56,6 +56,10 @@
           path = ./macos/system/template;
           description = "darwin configuration template for macOS";
         };
+        macos_home = {
+          path = ./macos/home/template;
+          description = "home manager configuration template for macOS";
+        };
       };
     }
     // flake-utils.lib.eachSystem supportedSystems (

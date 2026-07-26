@@ -262,49 +262,61 @@ writeShellApplication {
     (
         cd "$HOME"
 
-        if [ "$SUBCOMMAND" = "system" ]; then
+        MACOS_SYSTEM_ARCH="aarch64-darwin"
 
-            function restore_system_flake_lock(){
-                if ! mv "''${PWD}/flake.lock.old" "''${PWD}/flake.lock"; then
-                    echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
-                    return 1
-                fi
-            }
+        if ! [ "$(uname -m)" = "arm64" ]; then
+            MACOS_SYSTEM_ARCH="x86_64-darwin"
+        fi
 
-            function restore_system_flake(){
-                if ! mv "''${PWD}/flake.nix.old" "''${PWD}/flake.nix"; then
-                    echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
-                    return 1
-                fi
-            }
-
-
+        function backup_flake(){
             if [ -f "./flake.nix" ] && ! mv "./flake.nix" "./flake.nix.old"; then
                 echo "could not back up ''${PWD}/flake.nix to ''${PWD}/flake.nix.old" >&2
-                exit 1
+                return 1
             fi
+        }
 
+        function backup_flake_lock(){
             if [ -f "./flake.lock" ] && ! mv "./flake.lock" "./flake.lock.old"; then
                 echo "could not back up ''${PWD}/flake.lock to ''${PWD}/flake.lock.old" >&2
+                return 1
+            fi
+        }
 
-                restore_system_flake
+        function restore_flake_lock(){
+            if ! mv "''${PWD}/flake.lock.old" "''${PWD}/flake.lock"; then
+                echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
+                return 1
+            fi
+        }
 
+        function restore_flake(){
+            if ! mv "''${PWD}/flake.nix.old" "''${PWD}/flake.nix"; then
+                echo "could not restore ''${PWD}/flake.nix.old to ''${PWD}/flake.nix" >&2
+                return 1
+            fi
+        }
+
+        if [ "$SUBCOMMAND" = "system" ] && [ "$(uname)" = "Darwin" ]; then
+
+            if ! backup_flake; then
                 exit 1
             fi
 
-            MACOS_SYSTEM_ARCH="aarch64-darwin"
-
-            if ! [ "$(uname -m)" = "arm64" ]; then
-                MACOS_SYSTEM_ARCH="x86_64-darwin"
+            if ! backup_flake_lock; then
+                restore_flake
+                exit 1
             fi
 
-            if ! nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos" && \
-                sed -i "s|system = \"aarch64-darwin\";|''${MACOS_SYSTEM_ARCH}|g" "/var/root/flake.nix" && \
-                sed -i "s|# networking.hostName|networking.hostName = \"''${SYSTEM_HOSTNAME}\";|g" "/var/root/flake.nix";
-            then
+            function init_darwin_system_flake(){
+                nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos" || return 1;
+                sed -i "s|system = \"aarch64-darwin\";|system = \"''${MACOS_SYSTEM_ARCH}\";|g" "''${PWD}/flake.nix" || return 1;
+                sed -i "s|# networking.hostName|networking.hostName = \"''${SYSTEM_HOSTNAME}\";|g" "''${PWD}/flake.nix" || return 1;
+            }
+
+            if ! init_darwin_system_flake; then
                 echo "could not init \"https://github.com/incremental-design/projects/blob/main/infrastructure/macos/system/template/flake.nix\" into ''${PWD}/flake.nix" >&2
 
-                restore_system_flake && restore_system_flake_lock
+                restore_flake && restore_flake_lock
 
                 exit 1
             fi
@@ -319,23 +331,61 @@ writeShellApplication {
             then
                 echo "failed to \`nix run nix-darwin/nix-darwin-26.05#darwin-rebuild -- switch\`" >&2
 
-                restore_system_flake && restore_system_flake_lock
+                restore_flake && restore_flake_lock
 
                 exit 1
             fi
 
-        elif [ "$SUBCOMMAND" = "uninstall-system" ]; then
+        elif [ "$SUBCOMMAND" = "system" ]; then
+            echo "NixOS system install not implemented" >&2
+            exit 1
+        elif [ "$SUBCOMMAND" = "uninstall-system" ] && [ "$(uname)" = "Darwin" ]; then
 
             if ! nix run nix-darwin/nix-darwin-26.05#darwin-uninstaller; then
                 echo "faild to \`nix run nix-darwin/nix-darwin-26.05#darwin-uninstaller\`" >&2
             fi
+        elif [ "$SUBCOMMAND" = "uninstall-system" ]; then
+            echo "NixOS system uninstall not implemented" >&2
+            exit 1
+        elif [ "$SUBCOMMAND" = "home" ] && [ "$(uname)" = "Darwin" ]; then
+
+            if ! backup_flake; then
+                exit 1
+            fi
+
+            if ! backup_flake_lock; then
+                restore_flake
+                exit 1
+            fi
+
+            function init_darwin_home_flake(){
+                local user
+                user="$(whoami)"
+                nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos_home" || return 1
+                sed -i "s|username = \"default\";|username = \"''${user}\";|g" || return 1
+                sed -i "s|homeDirectory = \"/Users/Default\";|homeDirectory = \"''${HOME}\";|g" || return 1
+            }
+
+            if ! init_darwin_home_flake; then
+              echo "could not init \"https://github.com/incremental-design/projects/blob/main/infrastructure/macos/home/template/flake.nix\" into ''${PWD}/flake.nix" >&2
+              restore_flake && restore_flake_lock
+              exit 1
+            fi
+
+            if ! nix run home-manager/release-26.05 -- --flake . switch; then
+                echo "could not \"nix run home-manager/release-26.05 -- --flake . switch\"" >&2
+                restore_flake && restore_flake_lock
+                exit 1
+            fi
 
         elif [ "$SUBCOMMAND" = "home" ]; then
+            echo "NixOS home manager not implemented" >&2
+            exit 1
+        elif [ "$SUBCOMMAND" = "uninstall-home" ] && [ "$(uname)" = "Darwin" ]; then
             echo "not implemented" >&2
             exit 1
         elif [ "$SUBCOMMAND" = "uninstall-home" ]; then
-            echo "not implemented" >&2
-            exit 1
+            echo "nixOS uninstall home not implemented" >&2
         fi
     )
 
