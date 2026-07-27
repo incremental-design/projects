@@ -362,8 +362,8 @@ writeShellApplication {
                 local user
                 user="$(whoami)"
                 nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos_home" || return 1
-                sed -i "s|username = \"default\";|username = \"''${user}\";|g" || return 1
-                sed -i "s|homeDirectory = \"/Users/Default\";|homeDirectory = \"''${HOME}\";|g" || return 1
+                sed -i "s|username = \"default\";|username = \"''${user}\";|g" "''${PWD}/flake.nix" || return 1
+                sed -i "s|homeDirectory = \"/Users/Default\";|homeDirectory = \"''${HOME}\";|g" "''${PWD}/flake.nix" || return 1
             }
 
             if ! init_darwin_home_flake; then
