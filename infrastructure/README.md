@@ -43,7 +43,7 @@ This flake contains all of the templates and helper scripts used to provision Ma
 
 3. log out and log back in
 
-3. `nix run "github:incremental-design/projects?dir=infrastructure#install" --extra-experimental-features "nix-command flakes" -- uninstall-system`
+3. `sudo -H nix run "github:incremental-design/projects?dir=infrastructure#install" --extra-experimental-features "nix-command flakes" -- uninstall-system`
 
 4. Reboot your computer.
 
