@@ -23,7 +23,7 @@ This flake contains all of the templates and helper scripts used to provision Ma
 > You can verify the nix-darwin installation by running `sudo`. It should prompt you to use your watch or touch id to 
 > You can also run `hostname` to verify that the mac hostname matches the value you supplied to the install script
 
-4. Use home-manager to configure your home directory, with `nix run "github:incremental-design/projects?dir=infrastructure#install" -- extra-experimental-features "nix-command flakes" -- home`
+4. Use home-manager to configure your home directory, with `nix run "github:incremental-design/projects?dir=infrastructure#install" --extra-experimental-features "nix-command flakes" -- home`
 
 <!--4. Use home-manager to configure your home directory, with `nix run "github:incremental-design/projects?dir=infrastructure#install" -- extra-experimental-features "nix-command flakes" -- home ` where 
   - `<>` is the -->
