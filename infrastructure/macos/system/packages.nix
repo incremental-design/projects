@@ -19,7 +19,6 @@
     nushell-plugin-query
     nushell-plugin-semver
     nushell-plugin-skim
-    nushell-plugin-units
     /*
     packages for zsh, bash
     */
