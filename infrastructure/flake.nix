@@ -44,7 +44,6 @@
       darwinModules = {
         darwin = import ./macos/system/darwin.nix;
         do-not-manage-nix = import ./macos/system/do-not-manage-nix.nix;
-        do-not-manage-shells = import ./macos/system/do-not-manage-shells.nix;
         packages = import ./macos/system/packages.nix;
         security = import ./macos/system/security.nix;
         shells = import ./macos/system/shells.nix;

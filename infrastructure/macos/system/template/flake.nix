@@ -37,9 +37,9 @@
           with infrastructure.darwinModules; [
             darwin
             do-not-manage-nix
-            do-not-manage-shells
             packages
             security
+            shells
           ]
         ))
         ++ [
