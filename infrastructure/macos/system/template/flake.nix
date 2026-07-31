@@ -12,12 +12,10 @@
   outputs = {
     nix-darwin,
     infrastructure,
-    self,
     nixpkgs,
     ...
   }: let
     system = "aarch64-darwin";
-    pkgs = nixpkgs {inherit system;};
   in {
     # sudo -H nix run nix-darwin/nix-darwin-26.05#darwin-rebuild --extra-experimental-features "nix-command flakes" -- build --flake ./.#default --show-trace
     # ---,--- ---------------------,---------------------------- -----------------------,--------------------------    ------------------,-------------------
@@ -32,16 +30,19 @@
     #                                                                                                                                       in this darwin                                                                                                                               configuration
     darwinConfigurations.default = nix-darwin.lib.darwinSystem {
       inherit system;
-      modules =
-        (map (p: p {inherit pkgs self;}) (
-          with infrastructure.darwinModules; [
-            darwin
-            do-not-manage-nix
-            packages
-            security
-            shells
-          ]
-        ))
+      pkgs = import nixpkgs {inherit system;};
+
+      /*
+      nix injects the pkgs argument into the modules for you. see https://github.com/nix-darwin/nix-darwin/blob/15abb8c98f336cd8bd840d71059adebabe60bf04/flake.nix#L28
+      */
+      modules = with infrastructure.darwinModules;
+        [
+          darwin
+          do-not-manage-nix
+          packages
+          security
+          shells
+        ]
         ++ [
           {
             nixpkgs.hostPlatform = system;
