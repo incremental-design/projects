@@ -37,7 +37,6 @@
       */
       modules = with infrastructure.darwinModules;
         [
-          do-not-manage-nix
           packages
           security
           shells
@@ -46,6 +45,14 @@
           {
             nixpkgs.hostPlatform = system;
             # networking.hostName   # see https://github.com/nix-darwin/nix-darwin/blob/d5bd9cd77aea4c0a8f49e7fd85545671a208ed15/modules/networking/default.nix#L45
+
+            # do not let nix darwin manage nix
+            # https://github.com/nix-darwin/nix-darwin/blob/d5bd9cd77aea4c0a8f49e7fd85545671a208ed15/modules/nix/default.nix#L208
+            nix.enable = false;
+
+            # Used for backwards compatibility, please read the changelog before changing.
+            # $ darwin-rebuild changelog
+            system.stateVersion = 6;
           }
         ];
     };
