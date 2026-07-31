@@ -58,11 +58,11 @@
       },
       "locked": {
         "dir": "infrastructure",
-        "lastModified": 1785465529,
-        "narHash": "sha256-XBywiwjVTO7zeSPs2N7y8pD5xzgzsjjhLrl/TxLorqA=",
+        "lastModified": 1785469034,
+        "narHash": "sha256-FpEQwhEA3v8eQuLLX0ag3o61K/4Hmv3AMzrBXUSsWrQ=",
         "owner": "incremental-design",
         "repo": "projects",
-        "rev": "e69810775ecd9abe219efef35d43bf2ffad8fc06",
+        "rev": "c13134b648b8644acd69ed1203b2990b87063727",
         "type": "github"
       },
       "original": {
