@@ -15,7 +15,6 @@
     nushell-plugin-gstat
     nushell-plugin-hcl
     nushell-plugin-highlight
-    nushell-plugin-net
     nushell-plugin-polars
     nushell-plugin-query
     nushell-plugin-semver
