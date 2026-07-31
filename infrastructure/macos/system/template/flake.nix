@@ -37,7 +37,6 @@
       */
       modules = with infrastructure.darwinModules;
         [
-          darwin
           do-not-manage-nix
           packages
           security
