@@ -47,6 +47,7 @@
         do-not-manage-shells = import ./macos/system/do-not-manage-shells.nix;
         packages = import ./macos/system/packages.nix;
         security = import ./macos/system/security.nix;
+        shells = import ./macos/system/shells.nix;
       };
       homeModules = {
         hm_macos = import ./macos/home/hm.nix;
