@@ -11,7 +11,6 @@
     */
     nushell
     nushell-plugin-bson
-    nushell-plugin-desktop_notifications
     nushell-plugin-formats
     nushell-plugin-gstat
     nushell-plugin-hcl
