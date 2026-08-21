@@ -4,7 +4,7 @@
     zsh
     nushell
   ];
-  fonts.packages = with pkgs; [nerd-fonts.zed-mono];
+  fonts.packages = with pkgs; [nerd-fonts.lilex];
 
   # do not let nix darwin manage bashrc, zshrc, zshenv
 

@@ -48,6 +48,7 @@
       };
       homeModules = {
         hm_macos = import ./macos/home/hm.nix;
+        zed_macos = import ./macos/home/zed.nix;
       };
       templates = {
         macos = {
