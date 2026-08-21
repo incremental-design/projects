@@ -80,6 +80,7 @@
       modules = with infrastructure.homeModules;
         [
           hm_macos
+          zed_macos
         ]
         ++ [
           {
