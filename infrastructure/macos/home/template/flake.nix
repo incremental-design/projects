@@ -81,6 +81,7 @@
         [
           hm_macos
           zed_macos
+          shells_macos
         ]
         ++ [
           {
