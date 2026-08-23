@@ -1,6 +1,16 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     /*
+    gnu replacements for bsd
+    */
+    coreutils
+    findutils
+    gnused
+    gnugrep
+    gawk
+    gnutar
+    gzip
+    /*
     all pkgs
     */
     git
