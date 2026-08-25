@@ -87,11 +87,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1787663917,
-        "narHash": "sha256-2LxlqDzefH7FEWU2BzI/KR9AUyqkwnsZH+K91+/2tMU=",
+        "lastModified": 1787669972,
+        "narHash": "sha256-JLt8XxZxP3F3evKTQRfG4cuV74waLSkDdhSnID/T8AM=",
         "owner": "incremental-design",
         "repo": "projects",
-        "rev": "383bb2a1374770b19d82ebbb6cadd989a9a9b32c",
+        "rev": "9ef3c8d2569ec7e8dfc7514aba12af90d869bc0d",
         "type": "github"
       },
       "original": {

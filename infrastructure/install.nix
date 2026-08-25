@@ -308,7 +308,7 @@ writeShellApplication {
             fi
 
             function init_darwin_system_flake(){
-                nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos" || return 1;
+                nix --extra-experimental-features "nix-command flakes" flake init -t "github:incremental-design/projects?dir=infrastructure#macos" || return 1;
                 sed -i "s|system = \"aarch64-darwin\";|system = \"''${MACOS_SYSTEM_ARCH}\";|g" "''${PWD}/flake.nix" || return 1;
                 sed -i "s|# networking.hostName|networking.hostName = \"''${SYSTEM_HOSTNAME}\";|g" "''${PWD}/flake.nix" || return 1;
             }
@@ -361,7 +361,7 @@ writeShellApplication {
             function init_darwin_home_flake(){
                 local user
                 user="$(whoami)"
-                nix flake init -t "github:incremental-design/projects?dir=infrastructure#macos_home" || return 1
+                nix --extra-experimental-features "nix-command flakes" flake init -t "github:incremental-design/projects?dir=infrastructure#macos_home" || return 1
                 sed -i "s|username = \"default\";|username = \"''${user}\";|g" "''${PWD}/flake.nix" || return 1
                 sed -i "s|homeDirectory = \"/Users/Default\";|homeDirectory = \"''${HOME}\";|g" "''${PWD}/flake.nix" || return 1
             }
