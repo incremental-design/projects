@@ -23,7 +23,7 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils"; # support eachSystem fan-out. see: https://github.com/numtide/flake-utils#eachsystem--system---system---attrs
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05"; # pin to nixpkgs 26.05
-    projects-flake.url = "../"; # input monorepo flake to add custom schema support
+    projects-flake.url = "path:../"; # input monorepo flake to add custom schema support
   };
   outputs = {
     flake-utils,
