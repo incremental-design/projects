@@ -372,8 +372,8 @@ writeShellApplication {
               exit 1
             fi
 
-            if ! nix run --extra-experimental-features "nix-command flakes" home-manager/release-26.05 -- --flake . switch; then
-                echo "could not \"nix run home-manager/release-26.05 -- --flake . switch\"" >&2
+            if ! nix run --extra-experimental-features "nix-command flakes" home-manager/release-26.05 -- --flake . switch -b backup; then
+                echo "could not \"nix run home-manager/release-26.05 -- --flake . switch -b backup\"" >&2
                 restore_flake && restore_flake_lock
                 exit 1
             fi
