@@ -47,9 +47,11 @@
         shells = import ./macos/system/shells.nix;
       };
       homeModules = {
+        bash_macos = import ./macos/home/bash.nix;
         hm_macos = import ./macos/home/hm.nix;
-        zed_macos = import ./macos/home/zed.nix;
         shells_macos = import ./macos/home/shells.nix;
+        starship_macos = import ./macos/home/starship.nix;
+        zsh_macos = import ./macos/home/zsh.nix;
       };
       templates = {
         macos = {
