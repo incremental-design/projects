@@ -79,9 +79,13 @@
       extraSpecialArgs = {inherit inputs;};
       modules = with infrastructure.homeModules;
         [
+          bash_macos
           hm_macos
-          zed_macos
+          nushell_macos
           shells_macos
+          starship_macos
+          zsh_macos
+          zed_macos
         ]
         ++ [
           {
