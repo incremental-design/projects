@@ -480,4 +480,141 @@ in {
       format = ''($aws )($glcoud )($openstack )($azure )$line_break''${custom.hh_0}''${custom.hh}[:](dimmed fg:bg_green)''${custom.mm}''${custom.p}( $singularity)( $kubernetes)( $docker_context)( $guix_shell)( $nix_shell)( $conda)( $pixi)( $direnv)( $nats) [](fg:fg_green)[ ](fg:fg_indigo bg:fg_green)$shell($shlvl)( $jobs)[](fg:fg_green bg:bg_mint)''${custom.cwd_pre_0}''${custom.cwd_pre_0_sep}''${custom.cwd_pre_0_sep_post}''${custom.cwd_pre_1}''${custom.cwd_pre_1_sep}''${custom.cwd_pre_1_sep_post}''${custom.cwd_pre_2}''${custom.cwd_pre_2_sep}''${custom.cwd_pre_2_sep_post}''${custom.cwd_pre_3}''${custom.cwd_pre_3_sep}''${custom.cwd_pre_terminal}''${custom.cwd_pre_terminal_2}''${custom.cwd_post_0}''${custom.cwd_post_0_sep}''${custom.cwd_post_1}''${custom.cwd_post_1_sep}''${custom.cwd_post_2}''${custom.cwd_post_2_sep}''${custom.cwd_post_3}''${custom.cwd_post_3_sep}''${custom.cwd_post_terminal}( $git_branch $git_commit $git_state)'';
       right_format = ''( $buf)( $bun)( $c)( $cpp)( $cmake)( $cobol)( $crystal)( $daml)( $dart)( $deno)( $dotnet)( $erlang)( $elixir)( $elm)( $fennel)( $fortran)( $gleam)( $gradle)( $golang)( $haskell)( $haxe)( $helm)( $java)( $julia)( $kotlin)( $lua)( $maven)( $meson)( $mojo)( $nodejs)( $nim)( $ocaml)( $odin)( $opa)( $perl)( $php)( $purescript)( $python)( $raku)( $quarto)( $red)( $rlang)( $ruby)( $rust)( $scala)( $solidity)( $spack)( $swift)( $terraform)( $typst)( $xmake)( $vagrant)( $vlang)( $zig)'';
     });
+  home.file.".config/starship/nushell.toml".source = (pkgs.formats.toml {}).generate "zsh.toml" (settings
+    // {
+      format = ''($aws )($glcoud )($openstack )($azure )$line_break''${custom.hh_0}''${custom.hh}[:](dimmed fg:bg_green)''${custom.mm}''${custom.p}( $singularity)( $kubernetes)( $docker_context)( $guix_shell)( $nix_shell)( $conda)( $pixi)( $direnv)( $nats) [](fg:fg_green)[ ](fg:fg_indigo bg:fg_green)$shell($shlvl)( $jobs)[](fg:fg_green bg:bg_mint)''${custom.cwd_pre_0}''${custom.cwd_pre_0_sep}''${custom.cwd_pre_0_sep_post}''${custom.cwd_pre_1}''${custom.cwd_pre_1_sep}''${custom.cwd_pre_1_sep_post}''${custom.cwd_pre_2}''${custom.cwd_pre_2_sep}''${custom.cwd_pre_2_sep_post}''${custom.cwd_pre_3}''${custom.cwd_pre_3_sep}''${custom.cwd_pre_terminal}''${custom.cwd_pre_terminal_2}''${custom.cwd_post_0}''${custom.cwd_post_0_sep}''${custom.cwd_post_1}''${custom.cwd_post_1_sep}''${custom.cwd_post_2}''${custom.cwd_post_2_sep}''${custom.cwd_post_3}''${custom.cwd_post_3_sep}''${custom.cwd_post_terminal}( $git_branch $git_commit $git_state)'';
+      right_format = ''( $buf)( $bun)( $c)( $cpp)( $cmake)( $cobol)( $crystal)( $daml)( $dart)( $deno)( $dotnet)( $erlang)( $elixir)( $elm)( $fennel)( $fortran)( $gleam)( $gradle)( $golang)( $haskell)( $haxe)( $helm)( $java)( $julia)( $kotlin)( $lua)( $maven)( $meson)( $mojo)( $nodejs)( $nim)( $ocaml)( $odin)( $opa)( $perl)( $php)( $purescript)( $python)( $raku)( $quarto)( $red)( $rlang)( $ruby)( $rust)( $scala)( $solidity)( $spack)( $swift)( $terraform)( $typst)( $xmake)( $vagrant)( $vlang)( $zig)'';
+      custom = {
+        hh_0 = {
+          when = true;
+          command = "$env.STARSHIP_HH_0";
+          format = "[$output](dimmed fg:bg_green)";
+        };
+        hh = {
+          when = true;
+          command = "$env.STARSHIP_HH";
+          format = "[$output](fg:fg_green)";
+        };
+        mm = {
+          when = true;
+          command = "$env.STARSHIP_MM";
+          format = "[$output](fg:fg_green)";
+        };
+        ss = {
+          when = true;
+          command = "$env.STARSHIP_SS";
+          format = "[$output](dimmed fg:bg_green)";
+        };
+        p = {
+          when = true;
+          command = "$env.STARSHIP_P";
+          format = "[$output](dimmed fg:bg_green)";
+        };
+        tz = {
+          when = true;
+          command = "$env.STARSHIP_TZ";
+          format = "[$output](dimmed fg:bg_green)";
+        };
+        cwd_pre_0 = {
+          when = true;
+          command = "$env.STARSHIP_CWD_PRE_0";
+          format = "[$output](fg:fg_indigo bg:bg_mint)";
+        };
+        cwd_pre_0_sep = {
+          when = "if ( $env.STARSHIP_CWD_PRE_0 != \"\" and $env.STARSHIP_CWD_PRE_1 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_mint_2 bg:bg_mint)";
+        };
+        cwd_pre_0_sep_post = {
+          when = "if ( $env.STARSHIP_CWD_PRE_0 != \"\" and $env.STARSHIP_CWD_PRE_1 == \"\" and $env.STARSHIP_CWD_POST_0 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_mint bg:bg_ice)";
+        };
+        cwd_pre_1 = {
+          when = true;
+          command = "echo \"$env.STARSHIP_CWD_PRE_1\"";
+          format = "[$output](fg:fg_indigo bg:bg_mint)";
+        };
+        cwd_pre_1_sep = {
+          when = "if ( $env.STARSHIP_CWD_PRE_1 != \"\" and $env.STARSHIP_CWD_PRE_2 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_mint_2 bg:bg_mint)";
+        };
+        cwd_pre_1_sep_post = {
+          when = "if ( $env.STARSHIP_CWD_PRE_1 != \"\" and $env.STARSHIP_CWD_PRE_2 == \"\" and $env.STARSHIP_CWD_POST_0 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_mint bg:bg_ice)";
+        };
+        cwd_pre_2 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_PRE_2\"";
+          format = "[$output](fg:fg_indigo bg:bg_mint)";
+        };
+        cwd_pre_2_sep = {
+          when = "if ( $env.STARSHIP_CWD_PRE_2 != \"\" and $env.STARSHIP_CWD_PRE_3 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_mint_2 bg:bg_mint)";
+        };
+        cwd_pre_2_sep_post = {
+          when = "if ( $env.STARSHIP_CWD_PRE_2 != \"\" and $env.STARSHIP_CWD_PRE_3 == \"\" and $env.STARSHIP_CWD_POST_0 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_mint bg:bg_ice)";
+        };
+        cwd_pre_3 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_PRE_3\"";
+          format = "[$output](fg:fg_indigo bg:bg_mint)";
+        };
+        cwd_pre_3_sep = {
+          when = "if ( $env.STARSHIP_CWD_PRE_3 != \"\" and $env.STARSHIP_CWD_POST_0 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_mint bg:bg_ice)";
+        };
+        cwd_pre_terminal = {
+          when = "if ( $env.STARSHIP_CWD_POST_0 == \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_mint)";
+        };
+        cwd_post_0 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_POST_0\"";
+          format = "[$output](fg:fg_indigo bg:bg_ice)";
+        };
+        cwd_post_0_sep = {
+          when = "if ( $env.STARSHIP_CWD_POST_0 != \"\" and $env.STARSHIP_CWD_POST_1 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_ice_2 bg:bg_ice)";
+        };
+        cwd_post_1 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_POST_1\"";
+          format = "[$output](fg:fg_indigo bg:bg_ice)";
+        };
+        cwd_post_1_sep = {
+          when = "if ( $env.STARSHIP_CWD_POST_1 != \"\" and $env.STARSHIP_CWD_POST_2 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_ice_2 bg:bg_ice)";
+        };
+        cwd_post_2 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_POST_2\"";
+          format = "[$output](fg:fg_indigo bg:bg_ice)";
+        };
+        cwd_post_2_sep = {
+          when = "if ( $env.STARSHIP_CWD_POST_2 != \"\" and $env.STARSHIP_CWD_POST_3 != \"\" ) { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](bold fg:bg_ice_2 bg:bg_ice)";
+        };
+        cwd_post_3 = {
+          when = true;
+          command = "echo \"$STARSHIP_CWD_POST_3\"";
+          format = "[$output](fg:fg_indigo bg:bg_ice)";
+        };
+        cwd_post_terminal = {
+          when = "if ( $env.STARSHIP_CWD_POST_3 != \"\" or $env.STARSHIP_CWD_POST_2 != \"\" or $env.STARSHIP_CWD_POST_1 != \"\" or $env.STARSHIP_CWD_POST_0 != \"\") { exit 0 } else { exit 1 } ";
+          command = "echo ";
+          format = "[$output](fg:bg_ice)";
+        };
+      };
+    });
 }
