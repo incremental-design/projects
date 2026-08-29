@@ -1,6 +1,6 @@
 {
   pkgs,
-  home-manager,
+  lib,
   ...
 }: {
   programs.nushell = let
@@ -15,7 +15,7 @@
     enable = true;
     settings = {
       hooks = {
-        pre_prompt = home-manager.lib.hm.nushell.mkNushellInline ''
+        pre_prompt = lib.hm.nushell.mkNushellInline ''
           [
             {
               mut pre = if ((which git | length) == 1) {
