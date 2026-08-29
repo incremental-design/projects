@@ -532,7 +532,7 @@ in {
         };
         cwd_pre_1 = {
           when = true;
-          command = "echo \"$env.STARSHIP_CWD_PRE_1\"";
+          command = "$env.STARSHIP_CWD_PRE_1";
           format = "[$output](fg:fg_indigo bg:bg_mint)";
         };
         cwd_pre_1_sep = {
@@ -547,7 +547,7 @@ in {
         };
         cwd_pre_2 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_PRE_2\"";
+          command = "$env.STARSHIP_CWD_PRE_2";
           format = "[$output](fg:fg_indigo bg:bg_mint)";
         };
         cwd_pre_2_sep = {
@@ -562,7 +562,7 @@ in {
         };
         cwd_pre_3 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_PRE_3\"";
+          command = "$env.STARSHIP_CWD_PRE_3";
           format = "[$output](fg:fg_indigo bg:bg_mint)";
         };
         cwd_pre_3_sep = {
@@ -577,7 +577,7 @@ in {
         };
         cwd_post_0 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_POST_0\"";
+          command = "$env.STARSHIP_CWD_POST_0";
           format = "[$output](fg:fg_indigo bg:bg_ice)";
         };
         cwd_post_0_sep = {
@@ -587,7 +587,7 @@ in {
         };
         cwd_post_1 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_POST_1\"";
+          command = "$env.STARSHIP_CWD_POST_1";
           format = "[$output](fg:fg_indigo bg:bg_ice)";
         };
         cwd_post_1_sep = {
@@ -597,7 +597,7 @@ in {
         };
         cwd_post_2 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_POST_2\"";
+          command = "$env.STARSHIP_CWD_POST_2";
           format = "[$output](fg:fg_indigo bg:bg_ice)";
         };
         cwd_post_2_sep = {
@@ -607,7 +607,7 @@ in {
         };
         cwd_post_3 = {
           when = true;
-          command = "echo \"$STARSHIP_CWD_POST_3\"";
+          command = "$env.STARSHIP_CWD_POST_3";
           format = "[$output](fg:fg_indigo bg:bg_ice)";
         };
         cwd_post_terminal = {
