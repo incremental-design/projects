@@ -53,6 +53,7 @@
         shells_macos = import ./macos/home/shells.nix;
         starship_macos = import ./macos/home/starship.nix;
         zsh_macos = import ./macos/home/zsh.nix;
+        zed_macos = import ./macos/home/zed.nix;
       };
       templates = {
         macos = {
