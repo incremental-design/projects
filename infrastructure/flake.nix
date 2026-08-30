@@ -48,6 +48,7 @@
       };
       homeModules = {
         bash_macos = import ./macos/home/bash.nix;
+        git_macos = import ./macos/home/git.nix;
         hm_macos = import ./macos/home/hm.nix;
         nushell_macos = import ./macos/home/nushell.nix;
         shells_macos = import ./macos/home/shells.nix;
