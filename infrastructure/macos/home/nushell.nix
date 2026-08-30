@@ -15,6 +15,16 @@
     enable = true;
     extraConfig = ''
       $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
+
+      alias cd_builtin = cd
+
+      def cd [path?: string] {
+        try {
+          if $path == null { cd_builtin } else { cd_builtin $path }
+        } catch {
+          if $path == null { z } else { z $path }
+        }
+      }
     '';
     settings = {
       hooks = {
