@@ -17,6 +17,10 @@
     username = "default";
     homeDirectory = "/Users/Default";
     system = "aarch64-darwin";
+    ssh_public_key = "";
+    ssh_private_key = "";
+    git_username = "";
+    git_email = "";
   in {
     homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system}; # home manager requires "legacyPackages" ... not updated nixkpgs { inherit system;}; -> nixpkgs flake
@@ -80,6 +84,7 @@
       modules = with infrastructure.homeModules;
         [
           bash_macos
+          git_macos
           hm_macos
           nushell_macos
           shells_macos
@@ -91,6 +96,10 @@
           {
             home.username = username;
             home.homeDirectory = homeDirectory;
+            programs.git.signing.key = ssh_public_key;
+            programs.git.settings.user.name = git_username;
+            programs.git.settings.user.email = git_email;
+            programs.ssh.settings."*".identityFile = ssh_private_key;
           }
         ];
     };

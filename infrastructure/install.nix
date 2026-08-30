@@ -112,6 +112,10 @@ writeShellApplication {
     HELPMSG=0
     EXIT_CODE=0
     SYSTEM_HOSTNAME=""
+    SSH_PUBLIC_KEY=""
+    SSH_PRIVATE_KEY=""
+    GIT_USERNAME=""
+    GIT_EMAIL=""
     FLAG=""
 
     if (( $# == 0 )); then
@@ -141,6 +145,46 @@ writeShellApplication {
         elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [ "$1" = "help" ]; then
             HELPMSG=2
             break
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [ "$1" = "--ssh_public_key" ]; then
+            FLAG="--ssh_public_key"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [[ "$1" = --ssh_public_key=* ]]; then
+            SSH_PUBLIC_KEY="''${1#--ssh_public_key=}"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ "$FLAG" = "--ssh_public_key" ]; then
+            FLAG=""
+            SSH_PUBLIC_KEY="$1"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [ "$1" = "--ssh_private_key" ]; then
+            FLAG="--ssh_private_key"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [[ "$1" = --ssh_private_key=* ]]; then
+            SSH_PRIVATE_KEY="''${1#--ssh_private_key=}"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ "$FLAG" = "--ssh_private_key" ]; then
+            FLAG=""
+            SSH_PRIVATE_KEY="$1"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [ "$1" = "--git_username" ]; then
+            FLAG="--git_username"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [[ "$1" = --git_username=* ]]; then
+            GIT_USERNAME="''${1#--git_username=}"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ "$FLAG" = "--git_username" ]; then
+            FLAG=""
+            GIT_USERNAME="$1"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [ "$1" = "--git_email" ]; then
+            FLAG="--git_email"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ -z "$FLAG" ] && [[ "$1" = --git_email=* ]]; then
+            GIT_EMAIL="''${1#--git_email=}"
+            shift
+        elif [ "$SUBCOMMAND" = "home" ] && [ "$FLAG" = "--git_email" ]; then
+            FLAG=""
+            GIT_EMAIL="$1"
+            shift
         elif [ "$SUBCOMMAND" = "uninstall-system" ] && [ -z $FLAG ] && [ "$1" = "help" ]; then
             HELPMSG=4
             break
@@ -155,9 +199,13 @@ writeShellApplication {
         fi
     done
 
-    if [ "$SUBCOMMAND" = "system" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
-
     SYSTEM_HOSTNAME_RE='^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$'
+    SSH_PUBLIC_KEY_RE='^(?:~(?:/(?:[^/]+(?:/[^/]+)*)?)|/(?:[^/]+(?:/[^/]+)*)?|(?:[^/]+(?:/[^/]+)*))/?$'
+    SSH_PRIVATE_KEY_RE='^(?:~(?:/(?:[^/]+(?:/[^/]+)*)?)|/(?:[^/]+(?:/[^/]+)*)?|(?:[^/]+(?:/[^/]+)*))/?$'
+    GIT_USERNAME_RE='^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$'
+    GIT_EMAIL_RE='^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+    if [ "$SUBCOMMAND" = "system" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
 
         while ! [[ "$SYSTEM_HOSTNAME" =~ $SYSTEM_HOSTNAME_RE ]] ||
         [ "''${#SYSTEM_HOSTNAME}" -gt 255 ]; do
@@ -174,8 +222,54 @@ writeShellApplication {
             EXIT_CODE=1
         fi
 
-    # elif [ "$SUBCOMMAND" = "user" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
-    # elif [ "$SUBCOMMAND" = "user" ] && (( HELPMSG == 0 )); then
+    elif [ "$SUBCOMMAND" = "home" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
+
+        while ! [[ "$SSH_PUBLIC_KEY" =~ $SSH_PUBLIC_KEY_RE ]]; do
+            echo "\"$SSH_PUBLIC_KEY\" is not a valid absolute or relative path to an ssh public key: Enter path:" >&2
+            IFS= read -r SSH_PUBLIC_KEY
+        done
+
+        while ! [[ "$SSH_PRIVATE_KEY" =~ $SSH_PRIVATE_KEY_RE ]]; do
+            echo "\"$SSH_PRIVATE_KEY\" is not a valid absolute or relative path to an ssh private key: Enter path:" >&2
+            IFS= read -r SSH_PRIVATE_KEY
+        done
+
+        while ! [[ "$GIT_USERNAME" =~ $GIT_USERNAME_RE ]]; do
+            echo "\"$GIT_USERNAME\" is not a valid git username (max 39 characters): Enter username:" >&2
+            IFS= read -r GIT_USERNAME
+        done
+
+        while ! [[ "$GIT_EMAIL" =~ $GIT_EMAIL_RE ]]; do
+            echo "\"$GIT_EMAIL\" is not a valid email: Enter email:" >&2
+            IFS= read -r GIT_EMAIL
+        done
+
+    elif [ "$SUBCOMMAND" = "home" ] && (( HELPMSG == 0 )); then
+
+        if ! [[ "$SSH_PUBLIC_KEY" =~ $SSH_PUBLIC_KEY_RE ]]; then
+            echo "\"$SSH_PUBLIC_KEY\"" is not a valid absolute or relative path to an ssh public key >&2
+            HELPMSG=2
+            EXIT_CODE=1
+        fi
+
+        if ! [[ "$SSH_PRIVATE_KEY" =~ $SSH_PRIVATE_KEY_RE ]]; then
+            echo "\"$SSH_PRIVATE_KEY\"" is not a valid absolute or relative path to an ssh private key >&2
+            HELPMSG=2
+            EXIT_CODE=1
+        fi
+
+        if ! [[ "$GIT_USERNAME" =~ $GIT_USERNAME_RE ]]; then
+            echo "\"$GIT_USERNAME\"" is not a valid github username >&2
+            HELPMSG=2
+            EXIT_CODE=1
+        fi
+
+        if ! [[ "$GIT_EMAIL" =~ $GIT_EMAIL_RE ]]; then
+            echo "\"$GIT_EMAIL\"" is not a valid email address >&2
+            HELPMSG=2
+            EXIT_CODE=1
+        fi
+
     fi
 
     if (( HELPMSG == 1 )) || (( HELPMSG == 3 )); then
@@ -209,6 +303,13 @@ writeShellApplication {
     "nix-command flakes" \
     -- home
     ```
+
+    | arg | value | example |
+    |:----|:------|:--------|
+    |`<ssh_private_key>` | Path to private key | "~/.ssh/id_ed25519" |
+    |`<ssh_public_key>` | Path to public key | "~/.ssh/id_ed25519.pub" |
+    |`<git_username>` | username for signing git commits | "firstname_lastname" |
+    |`<git_email>` | email for signing git commits | "firstname_lastname@email.com" |
 
     EOF
     fi
@@ -364,6 +465,10 @@ writeShellApplication {
                 nix --extra-experimental-features "nix-command flakes" flake init -t "github:incremental-design/projects?dir=infrastructure#macos_home" || return 1
                 sed -i "s|username = \"default\";|username = \"''${user}\";|g" "''${PWD}/flake.nix" || return 1
                 sed -i "s|homeDirectory = \"/Users/Default\";|homeDirectory = \"''${HOME}\";|g" "''${PWD}/flake.nix" || return 1
+                sed -i "s|ssh_public_key = \"\";|ssh_public_key = \"''${SSH_PUBLIC_KEY}\";|g" "''${PWD}/flake.nix" || return 1
+                sed -i "s|ssh_private_key = \"\";|ssh_private_key = \"''${SSH_PRIVATE_KEY}\";|g" "''${PWD}/flake.nix" || return 1
+                sed -i "s|git_username = \"\";|git_username = \"''${GIT_USERNAME}\";|g" "''${PWD}/flake.nix" || return 1
+                sed -i "s|git_email = \"\";|git_email = \"''${GIT_EMAIL}\";|g" "''${PWD}/flake.nix" || return 1
             }
 
             if ! init_darwin_home_flake; then
