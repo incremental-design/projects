@@ -13,7 +13,7 @@
       }) {inherit system;};
   in {
     enable = true;
-    envFile = ''
+    envFile.text = ''
       $env.STARSHIP_CONFIG = "~/.config/starship/nushell.toml"
     '';
     settings = {
