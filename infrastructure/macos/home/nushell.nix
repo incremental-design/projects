@@ -14,7 +14,7 @@
   in {
     enable = true;
     environmentVariables = {
-      STARSHIP_CONFIG = lib.hm.nushell.mkNushellInline ''{|| $"{$env.HOME}/.config/starship/nushell.toml" }'';
+      STARSHIP_CONFIG = lib.hm.nushell.mkNushellInline ''{|| ($env.HOME | path join ".config" "starship" "nushell.toml") }'';
     };
     settings = {
       hooks = {
