@@ -13,9 +13,9 @@
       }) {inherit system;};
   in {
     enable = true;
-    environmentVariables = {
-      STARSHIP_CONFIG = lib.hm.nushell.mkNushellInline ''{|| ($env.HOME | path join ".config" "starship" "nushell.toml") }'';
-    };
+    extraConfig = ''
+      $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
+    '';
     settings = {
       hooks = {
         pre_prompt = lib.hm.nushell.mkNushellInline ''
