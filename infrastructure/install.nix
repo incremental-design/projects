@@ -200,9 +200,7 @@ writeShellApplication {
     done
 
     SYSTEM_HOSTNAME_RE='^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$'
-    SSH_PUBLIC_KEY_RE='^(?:~(?:/(?:[^/]+(?:/[^/]+)*)?)|/(?:[^/]+(?:/[^/]+)*)?|(?:[^/]+(?:/[^/]+)*))/?$'
-    SSH_PRIVATE_KEY_RE='^(?:~(?:/(?:[^/]+(?:/[^/]+)*)?)|/(?:[^/]+(?:/[^/]+)*)?|(?:[^/]+(?:/[^/]+)*))/?$'
-    GIT_USERNAME_RE='^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$'
+    GIT_USERNAME_RE='^[a-z0-9]([a-z0-9-]{0,37}[a-z0-9])?$'
     GIT_EMAIL_RE='^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
     if [ "$SUBCOMMAND" = "system" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
@@ -224,13 +222,13 @@ writeShellApplication {
 
     elif [ "$SUBCOMMAND" = "home" ] && [ -t 0 ] && (( HELPMSG == 0 )); then
 
-        while ! [[ "$SSH_PUBLIC_KEY" =~ $SSH_PUBLIC_KEY_RE ]]; do
-            echo "\"$SSH_PUBLIC_KEY\" is not a valid absolute or relative path to an ssh public key: Enter path:" >&2
+        while ! [ -e "$SSH_PUBLIC_KEY" ]; do
+            echo "no public key exists at \"$SSH_PUBLIC_KEY\": Enter path to public key:" >&2
             IFS= read -r SSH_PUBLIC_KEY
         done
 
-        while ! [[ "$SSH_PRIVATE_KEY" =~ $SSH_PRIVATE_KEY_RE ]]; do
-            echo "\"$SSH_PRIVATE_KEY\" is not a valid absolute or relative path to an ssh private key: Enter path:" >&2
+        while ! [ -e "$SSH_PRIVATE_KEY" ]; do
+            echo "no private key exists at \"$SSH_PRIVATE_KEY\": Enter path to private key:" >&2
             IFS= read -r SSH_PRIVATE_KEY
         done
 
