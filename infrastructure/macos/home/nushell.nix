@@ -27,8 +27,8 @@
           }
         }
 
-      def --env --wrapped cd [dir: string@"nu-complete zoxide path"] {
-        cd $dir
+      def --env --wrapped cd [..rest: string@"nu-complete zoxide path"] {
+        cd ...$rest
       }
     '';
     settings = {
