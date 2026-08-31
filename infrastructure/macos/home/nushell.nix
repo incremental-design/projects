@@ -22,7 +22,7 @@
         try {
           if $path == null { cd_builtin } else { cd_builtin $path }
         } catch {
-          if $path == null { z } else { z $path }
+          if $path == null { z } else { __zoxide_z $path }
         }
       }
     '';
