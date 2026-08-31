@@ -58,11 +58,11 @@
       },
       "locked": {
         "dir": "infrastructure",
-        "lastModified": 1788131231,
-        "narHash": "sha256-a0YBRabwG1+QmTLXZyGWwDb/z5q2/HhNqKbVRwhZ5aY=",
+        "lastModified": 1788142664,
+        "narHash": "sha256-nlwvMLCKROKHjSsG8Y3WT0c3cq7XRT/JKLz64Isl3CU=",
         "owner": "incremental-design",
         "repo": "projects",
-        "rev": "846eb9fef6b1de05bba5fbced5b32b8b15090519",
+        "rev": "3808b0e150995db454486106779ea814ace3c82a",
         "type": "github"
       },
       "original": {
@@ -162,11 +162,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1788123880,
-        "narHash": "sha256-Tphwr3W6hTKhsN9nyQkhU4+XuJtFPLywYSTFUalftWU=",
+        "lastModified": 1788131231,
+        "narHash": "sha256-a0YBRabwG1+QmTLXZyGWwDb/z5q2/HhNqKbVRwhZ5aY=",
         "owner": "incremental-design",
         "repo": "projects",
-        "rev": "586b43f0d987d8f306a60ad768ffbc08760f4b93",
+        "rev": "846eb9fef6b1de05bba5fbced5b32b8b15090519",
         "type": "github"
       },
       "original": {
