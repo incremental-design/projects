@@ -23,7 +23,6 @@
         ControlPath = "~/.ssh/master-%r@%n:%p";
         ControlPersist = "no";
         UseKeychain = "yes";
-        identityFile = "~/.ssh/id_ed25519";
       };
     };
   };
