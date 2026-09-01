@@ -19,7 +19,7 @@
       if $nu.is-interactive {
         alias cd_builtin = cd
 
-        def --env --wrapped cd [...rest: string@"nu-complete zoxide path"] {
+        def --env --wrapped cd [...rest: string] {
           if ($rest | length) == 0 { cd_builtin ~ } else {
             try { cd_builtin ...$rest } catch {
               try { __zoxide_z ...$rest } catch {
