@@ -16,19 +16,18 @@
     extraConfig = ''
       $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
 
-      def "nu-complete zoxide path" [context: string] {
-          {
-            options: {
-              sort: false,
-              completion_algorithm: substring,
-              case_sensitive: false,
-            },
-            completions: (^zoxide query --list --exclude $env.PWD -- $context),
+      if $nu.is-interactive {
+        alias cd_builtin = cd
+
+        def --env --wrapped cd [...rest: string@"nu-complete zoxide path"] {
+          if ($rest | length) == 0 { cd_builtin ~ } else {
+            try { cd_builtin ...$rest } catch {
+              try { __zoxide_z ...$rest } catch {
+                ^z ...$rest
+              }
+            }
           }
         }
-
-      def --env --wrapped cd [...rest: string@"nu-complete zoxide path"] {
-        __zoxide_z ...$rest
       }
     '';
     settings = {
