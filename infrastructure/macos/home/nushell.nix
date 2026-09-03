@@ -15,6 +15,11 @@
     enable = true;
     extraConfig = ''
       $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
+
+      if $nu.is-interactive {
+        # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
+        alias cd = z
+      }
     '';
     settings = {
       hooks = {
