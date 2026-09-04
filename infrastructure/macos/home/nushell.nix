@@ -1,8 +1,11 @@
 {
   pkgs,
   lib,
+  config,
   ...
-}: {
+}: let
+  configDir = "${config.home.homeDirectory}/Library/Application Support/nushell";
+in {
   programs.nushell = let
     system = pkgs.system;
     pinnedPkgs =
@@ -13,22 +16,7 @@
       }) {inherit system;};
   in {
     enable = true;
-    extraConfig = ''
-      $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
-
-      def cd_interactive --env --wrapped [...rest: string ] {
-        if $nu.is-interactive {
-          # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
-          __zoxide_z ...$rest
-        } else if ( ( $rest | length ) == 0 ) {
-          cd ~
-        } else {
-          cd $rest.0
-        }
-      }
-
-      alias cd = cd_interactive
-    '';
+    configDir = configDir;
     settings = {
       hooks = {
         pre_prompt = lib.hm.nushell.mkNushellInline ''
@@ -146,4 +134,20 @@
       nushell-plugin-skim
     ];
   };
+  home.file."${configDir}/autoload/cd_interactive.nu".text = ''
+    $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
+
+    def cd_interactive --env --wrapped [...rest: string ] {
+      if $nu.is-interactive {
+        # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
+        __zoxide_z ...$rest
+      } else if ( ( $rest | length ) == 0 ) {
+        cd ~
+      } else {
+        cd $rest.0
+      }
+    }
+
+    alias cd = cd_interactive
+  '';
 }
