@@ -16,10 +16,18 @@
     extraConfig = ''
       $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
 
-      if $nu.is-interactive {
-        # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
-        alias cd = z
+      def cd_interactive --env --wrapped [...rest: string ] {
+        if $nu.is-interactive {
+          # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
+          __zoxide_z ...$rest
+        } else if ( ( $rest | length ) == 0 ) {
+          cd ~
+        } else {
+          cd $rest.0
+        }
       }
+
+      alias cd = cd_interactive
     '';
     settings = {
       hooks = {
