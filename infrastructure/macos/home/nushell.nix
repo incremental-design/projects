@@ -1,5 +1,6 @@
 {
   pkgs,
+  config,
   lib,
   ...
 }: {
@@ -13,7 +14,7 @@
       }) {inherit system;};
   in {
     enable = true;
-    extraConfig = ''
+    home.file."${config.programs.nushell.configDir}/autoload/cd_interactive.nu" = ''
       $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
 
       def cd_interactive --env --wrapped [...rest: string ] {
