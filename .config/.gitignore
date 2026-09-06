@@ -10,8 +10,11 @@
 !install-git-hooks.nix
 !lint-commit.nix
 !parse-manifest-flake_nix.nix
+!parse-manifest-go_mod.nix
 !match-dirent.nix
 !stub-project.nix
 !stub-project-nix_v2.33.1.nix
 !tool.nix
 !tool-nix_v2.33.1.nix
+!tool-go_v1.27.1.nix
+!tool-golangci-lint_v2.13.2.nix

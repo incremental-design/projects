@@ -4,7 +4,10 @@
   lib,
   ...
 }: let
-  nuPkg = if config.programs.nushell.package != null then config.programs.nushell.package else pkgs.nushell;
+  nuPkg =
+    if config.programs.nushell.package != null
+    then config.programs.nushell.package
+    else pkgs.nushell;
 in {
   programs.zed-editor = {
     enable = true;
