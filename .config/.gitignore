@@ -14,6 +14,7 @@
 !match-dirent.nix
 !stub-project.nix
 !stub-project-nix_v2.33.1.nix
+!stub-project-go_v1.27.1.nix
 !tool.nix
 !tool-nix_v2.33.1.nix
 !tool-go_v1.27.1.nix
