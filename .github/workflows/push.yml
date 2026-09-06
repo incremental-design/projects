@@ -75,36 +75,9 @@ on:
     branches: ["main"]
 
 jobs:
-  # Semantic version validation job
-  lint-semantic-versions:
-    name: Lint Semantic Versions
-    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Lint semantic versions for each commit
-        run: |
-          # Exit at first failure
-          set -e
-
-          # project lint semver command already iterates from HEAD all the way to BASE,
-          # accumulating packages that may have been deleted along the way. No need to
-          # iterate backward through commits here.
-
-          if ! nix develop --command project-lint-semver --all; then
-              echo "❌ Commit $commit failed project-lint-semver" >&2
-              exit 1
-            else
-              echo "✅ Commit $commit passed project-lint-semver" >&2
-          fi
-
   # Lint job - only needs to run on one platform since it's not platform-specific
   lint-projects:
     name: Lint Projects
-    needs: lint-semantic-versions
     runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
     permissions:
       id-token: "write"

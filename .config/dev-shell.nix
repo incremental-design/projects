@@ -126,7 +126,6 @@
     builtins.filter (derivation:
       derivation.name
       != "project-lint"
-      && derivation.name != "project-lint-semver"
       && derivation.name != "project-build"
       && derivation.name != "project-test")
     manifest.value)
@@ -139,7 +138,6 @@
     then bins
     else throw "Duplicate binaries found in ${manifestNames}: ${binNames}";
   project-lint = wrap "project-lint";
-  project-lint-semver = wrap "project-lint-semver";
   project-build = wrap "project-build";
   project-test = wrap "project-test";
   stubProjects = import ./stub-project.nix {inherit pkgs;};
@@ -153,7 +151,6 @@
         (import ./stub-project.nix {inherit pkgs;})
         (import ./install-git-hooks.nix {inherit pkgs;})
         project-lint
-        project-lint-semver
         project-build
         project-test
       ]
@@ -174,25 +171,6 @@
         recurse through the working directory and subdirectories, linting all projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-lint"))}
 
         - use flag --changed to skip projects that have not changed in the latest commit
-
-        # project-lint-semver [ --changed | --all ] [[FROM TO]]
-        recurse through the working directory and subdirectories, validating the semantic version of projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-lint-semver"))}
-
-        - limit the range of commits to lint with [[FROM TO]]
-            - provide a pair of commit hashes semantic version commits between and including the two hashes
-            - omit the pair of commit hashes to lint from BASE to HEAD
-            - note: order matters! FROM should be a commit hash that is before TO, and both hashes should be on the same branch
-        - use flag --changed to omit projects who's manifest file has NOT changed in the directly preceding commit
-
-        This command outputs a JSON-line-separated list of records, where each record contains a hash, path and version, a : e.g.
-
-            { "hash": 57b8f5ac4840b415dd3d4319d8e7493a4345eaef, "path": "path/to/project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
-            { "hash": 57b8f5ac4840b415dd3d4319d8e7493a4345eaef, "path": "path/to/other-project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
-            { "hash": 81268c1a87ef56822fc02ccfbb0621418964dc12, "path": "path/to/project-manifest-file", "version": "MAJOR.MINOR.PATCH"}
-
-        - This list contains the version of every package in a manifest, at each commit in the linted range
-            - if you pass --changed, this list will only print the semantic versions of packages within manifests
-              that have changed in the current commit
 
         # project-build [ --changed | --all ]
         recurse through the working directory and subdirectories, building projects that have a ${builtins.concatStringsSep ", " (map (manifest: manifest.name) (manifestsForCmd "project-build"))}
@@ -235,7 +213,7 @@
       EOF
     '';
   };
-in {inherit project-lint project-lint-semver project-build project-test default;}
+in {inherit project-lint project-build project-test default;}
 #
 # The DEVELOPMENT SHELL
 #
@@ -387,20 +365,6 @@ in {inherit project-lint project-lint-semver project-build project-test default;
 #     )
 #     (pkgs.writeShellApplication
 #       {
-#         name = "project-lint-semver";                           # OPTIONAL command to run when project-lint-semver is called in directories containing this manifest
-#         meta = {
-#           description = "...";                                  # description of what lint-semver commands will be run when project-lint-semver is called on directories containing this manifest file
-#         };
-#         runtimeInputs = [...];                                  # bins needed to run lint-semver commands
-#         text = ''
-#           ...                                                   # the lint-semver commands
-#                                                                 # this command must print json lines as follows:
-#                                                                 # [ "commit": "<full commit hash>", "path": "<path/to/manifest>", "version": "<MAJOR.MINOR.PATCH> | <MAJOR.MINOR> | <MAJOR> | null"]
-#         '';
-#       }
-#     )
-#     (pkgs.writeShellApplication
-#       {
 #         name = "project-build";                                 # OPTIONAL command to run when project-build is called in directories containing this manifest
 #         meta = {
 #           description = "...";                                  # description of what build commands will be run when project-build is called on directories containing this manifest file
@@ -441,4 +405,3 @@ in {inherit project-lint project-lint-semver project-build project-test default;
 # ```
 #
 # see parse-manifest-flake_nix.nix for an example
-
