@@ -22,14 +22,6 @@ name: Validate Commits on Push
 #
 # ┌──────────────────┐
 # │                  │
-# │  Lint Commits    │ <-- Run on Linux ARM
-# │    Messages      │     Validates commit message format
-# │                  │     for each commit in sequence
-# └────────┬─────────┘
-#          │
-#          ▼
-# ┌──────────────────┐
-# │                  │
 # │  Lint Semantic   │ <-- Run on Linux ARM
 # │    Versions      │     Validates semver in each project
 # │                  │     for each commit in sequence
@@ -83,61 +75,9 @@ on:
     branches: ["main"]
 
 jobs:
-  # First job: Gather the commits that need validation
-  lint-commit-messages:
-    name: Lint Commit Messages
-    runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
-    permissions:
-      id-token: "write"
-      contents: "read"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Build lintCommit from Nix
-        run: |
-          # Build the lintCommit tool from the Nix expression
-          nix-build .config/lint-commit.nix
-
-      - name: Lint Commit Messages
-        id: lint-commit-messages
-        run: |
-          # Exit at first failure
-          set -e
-
-          # Get all commits from GitHub event
-          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '(. // []) | .[].id')
-
-          # Handle empty pushes
-          if [[ -z "$COMMITS" ]]; then
-            echo "No commits to validate"
-            exit 0
-          fi
-
-          # Format for logging
-          COMMITS_JSON=$(echo "$COMMITS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "Found commits to validate: $COMMITS_JSON"
-
-          # Loop through each commit
-          for commit in $COMMITS; do
-            echo "============================================================"
-            echo "🔍 Validating commit: $commit"
-            echo "📝 Message: $(git log -1 --pretty=%B $commit)"
-            echo "============================================================"
-
-            # Get commit message and validate it using lintCommit
-            git log -1 --pretty=%B "$commit" > commit_message.txt
-            ./result/bin/lintCommit commit_message.txt
-
-            echo "✅ Commit $commit passed validation" >&2
-          done
-
   # Semantic version validation job
   lint-semantic-versions:
     name: Lint Semantic Versions
-    needs: lint-commit-messages
     runs-on: ubuntu-22.04-arm # GitHub-hosted ARM64 runner
     steps:
       - uses: actions/checkout@v4

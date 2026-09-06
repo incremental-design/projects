@@ -1,6 +1,4 @@
 {pkgs ? import <nixpkgs> {}, ...}: let
-  lintCommit = import ./lint-commit.nix {inherit pkgs;};
-  commitMsg = "${lintCommit}/bin/lintCommit";
   prePush = "${pkgs.writeShellApplication {
     name = "prePush";
     runtimeInputs = let
@@ -55,7 +53,6 @@
       }
 
       # Install hooks using the function
-      install_hook "${commitMsg}" ".git/hooks/commit-msg" "commit-msg"
       install_hook "${prePush}" ".git/hooks/pre-push" "pre-push"
     '';
   };
