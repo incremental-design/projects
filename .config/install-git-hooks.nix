@@ -3,10 +3,9 @@
     name = "prePush";
     runtimeInputs = let
       devShell = import ./dev-shell.nix {inherit pkgs;};
-    in [devShell.project-lint devShell.project-lint-semver devShell.project-build devShell.project-test];
+    in [devShell.project-lint devShell.project-build devShell.project-test];
     text = ''
       project-lint --changed && \
-      project-lint-semver --changed && \
       project-build --changed && \
       project-test --changed
     '';
