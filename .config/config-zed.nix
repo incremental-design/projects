@@ -10,16 +10,16 @@
       }
     ),
 }: let
-  validZedConfigs = builtins.map (zc:
+  validZedConfigs = map (zc:
     if (builtins.isAttrs zc) && (builtins.hasAttr "zedSettings" zc) && (builtins.hasAttr "zedDebug" zc)
     then zc
-    else builtins.throw "invalid zedConfig ${builtins.toJSON zc}")
+    else throw "invalid zedConfig ${builtins.toJSON zc}")
   zedConfigs;
   jsonFormatter = pkgs.formats.json {};
   zedSettings = jsonFormatter.generate "settings.json" (
     pkgs.lib.lists.fold (set: acc: pkgs.lib.attrsets.recursiveUpdate acc set) {}
     (
-      (builtins.map (zc: zc.zedSettings) validZedConfigs)
+      (map (zc: zc.zedSettings) validZedConfigs)
       ++ [
         {
           # SHELL HOOK MODE (`"load_direnv": "shell_hook"`):
@@ -63,7 +63,7 @@
       ]
     )
   );
-  zedDebug = jsonFormatter.generate "debug.json" (builtins.filter (item: item != {}) (builtins.map (zc: zc.zedDebug) validZedConfigs));
+  zedDebug = jsonFormatter.generate "debug.json" (builtins.filter (item: item != {}) (map (zc: zc.zedDebug) validZedConfigs));
   zedConfiguration = pkgs.stdenv.mkDerivation {
     name = "zedConfiguration";
     src = null;
@@ -187,4 +187,3 @@ in
 #   zedSettings --> .zed/settings.json
 #   zedDebug    --> .zed/debug.json
 #
-
