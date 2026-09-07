@@ -1,8 +1,5 @@
 {pkgs ? import <nixpkgs> {}}: {
   zedSettings = {
-    "auto_install_extensions" = {
-      "Nix" = true;
-    };
     "languages" = {
       "Nix" = {
         "language_servers" = [
@@ -24,7 +21,7 @@
       "nixd" = {
         # see: https://zed.dev/docs/configuring-languages
         "binary" = {
-          "ignore_system_version" = false;
+          "ignore_system_version" = true;
           "path" = "${pkgs.nixd}/bin/nixd";
         };
       };
