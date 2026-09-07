@@ -5,6 +5,7 @@
 !config-vscode-nix.nix
 !config-zed.nix
 !config-zed-nix.nix
+!config-zed-go.nix
 !dev-shell.nix
 !CONTRIBUTE.md
 !install-git-hooks.nix
