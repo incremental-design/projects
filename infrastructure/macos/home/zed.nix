@@ -14,10 +14,15 @@ in {
     package = null; # don't install the zed editor for user, just patch config file
     userSettings = {
       buffer_font_family = "Lilex Nerd Font Propo";
-      terminal.font_family = "Lilex Nerd Font Propo";
-      terminal.shell.with_arguments = {
-        program = lib.getExe nuPkg;
-        args = ["--login"];
+      terminal = {
+        font_family = "Lilex Nerd Font Propo";
+        line_height = {
+          custom = 1.33;
+        };
+        shell.with_arguments = {
+          program = lib.getExe nuPkg;
+          args = ["--login"];
+        };
       };
     };
   };
