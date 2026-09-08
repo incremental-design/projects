@@ -181,7 +181,10 @@ jobs:
           set -e
 
           # Get all commits from GitHub event
-          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '(. // []) | .[].id')
+          COMMITS=$(jq -r '(. // []) | .[].id' << 'COMMITS_JSON'
+          ${{ toJson(github.event.commits) }}
+          COMMITS_JSON
+          )
 
           # Handle empty pushes
           if [[ -z "$COMMITS" ]]; then
@@ -246,7 +249,11 @@ jobs:
           set -e
 
           # Get all commits from GitHub event
-          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '(. // []) | .[].id')
+          COMMITS=$(jq -r '(. // []) | .[].id' << 'COMMITS_JSON'
+          ${{ toJson(github.event.commits) }}
+          COMMITS_JSON
+          )
+
 
           # Handle empty pushes
           if [[ -z "$COMMITS" ]]; then
