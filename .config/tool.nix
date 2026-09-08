@@ -14,7 +14,7 @@
         then true
         else if left.patch > right.patch
         then false
-        else builtins.throw "two versions of ${name} are both ${left.major}.${left.minor}.${left.patch}: \"${left.path}\" \"${right.path}\""
+        else throw "two versions of ${name} are both ${left.major}.${left.minor}.${left.patch}: \"${left.path}\" \"${right.path}\""
     )
     value) (pkgs.lib.foldl' (
       acc: curr: let
@@ -176,4 +176,3 @@ in
 #
 # it is the responsibility of the parse-manifest-<basename>_<ext>.nix script to alias tool and determine
 # the tool version. it is the responsibility of tool.nix to retrieve the tool binary for that version.
-

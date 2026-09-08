@@ -134,9 +134,10 @@ in {
       nushell-plugin-skim
     ];
   };
-  home.file."${configDir}/autoload/cd_interactive.nu".text = ''
+  home.file."${configDir}/autoload/starship_config.nu".text = ''
     $env.STARSHIP_CONFIG = ($env.HOME | path join ".config" "starship" "nushell.toml")
-
+  '';
+  home.file."${configDir}/autoload/cd_interactive.nu".text = ''
     def cd_interactive --env --wrapped [...rest: string ] {
       if $nu.is-interactive {
         # this works because ./shells.nix/homeManager.zoxide.enableNushellIntegration calls cd under the hood
@@ -149,5 +150,15 @@ in {
     }
 
     alias cd = cd_interactive
+  '';
+  home.file."${configDir}/autoload/bat.nu".text = ''
+    def cat_interactive --wrapped [...rest: string ] {
+      if $nu.is-interactive {
+        bat ...$rest
+      } else {
+        cat ...$rest
+      }
+    }
+    alias cat = cat_interactive
   '';
 }

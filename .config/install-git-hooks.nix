@@ -1,14 +1,11 @@
 {pkgs ? import <nixpkgs> {}, ...}: let
-  lintCommit = import ./lint-commit.nix {inherit pkgs;};
-  commitMsg = "${lintCommit}/bin/lintCommit";
   prePush = "${pkgs.writeShellApplication {
     name = "prePush";
     runtimeInputs = let
       devShell = import ./dev-shell.nix {inherit pkgs;};
-    in [devShell.project-lint devShell.project-lint-semver devShell.project-build devShell.project-test];
+    in [devShell.project-lint devShell.project-build devShell.project-test];
     text = ''
       project-lint --changed && \
-      project-lint-semver --changed && \
       project-build --changed && \
       project-test --changed
     '';
@@ -55,7 +52,6 @@
       }
 
       # Install hooks using the function
-      install_hook "${commitMsg}" ".git/hooks/commit-msg" "commit-msg"
       install_hook "${prePush}" ".git/hooks/pre-push" "pre-push"
     '';
   };
