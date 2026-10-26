@@ -435,6 +435,10 @@ writeShellApplication {
                 exit 1
             fi
 
+            if ! tailscale up; then
+                echo "failed to add computer to tailnet. Are you connected to the internet? Run \`sudo tailscale up\` in your terminal to add it manually."
+            fi
+
         elif [ "$SUBCOMMAND" = "system" ]; then
             echo "NixOS system install not implemented" >&2
             exit 1
