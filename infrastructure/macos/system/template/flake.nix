@@ -40,6 +40,7 @@
           packages
           security
           shells
+          tailscale
         ]
         ++ [
           {
