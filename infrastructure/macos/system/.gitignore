@@ -7,5 +7,6 @@
 !packages.nix
 !security.nix
 !shells.nix
+!tailscale.nix
 !template
 !template/**
