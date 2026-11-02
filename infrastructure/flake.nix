@@ -46,6 +46,7 @@
         security = import ./macos/system/security.nix;
         shells = import ./macos/system/shells.nix;
         tailscale = import ./macos/system/tailscale.nix;
+        firewall = import ./macos/system/firewall.nix;
       };
       homeModules = {
         bash_macos = import ./macos/home/bash.nix;
