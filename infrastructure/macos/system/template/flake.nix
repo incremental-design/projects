@@ -41,6 +41,7 @@
           security
           shells
           tailscale
+          firewall
         ]
         ++ [
           {
