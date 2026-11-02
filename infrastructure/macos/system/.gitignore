@@ -5,6 +5,7 @@
 !do-not-manage-nix.nix
 !do-not-manage-shells.nix
 !packages.nix
+!firewall.nix
 !security.nix
 !shells.nix
 !tailscale.nix
