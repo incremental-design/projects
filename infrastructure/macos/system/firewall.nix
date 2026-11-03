@@ -12,7 +12,7 @@ in {
   };
   networking.wakeOnLan.enable = true;
   # allow all incoming connections from airdrop and loopback
-  environment.etc."pf.anchors/nix-darwin" = {
+  environment.etc."pf.anchors/nix-darwin".text = {
     text = ''
       # allow airdrop, airplay, continuity
       pass quick on lo0 all
