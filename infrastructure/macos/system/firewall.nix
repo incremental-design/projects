@@ -31,7 +31,8 @@ in {
         table <ts> { 100.64.0.0/10 100.100.0.0/24 100.100.100.0/24 100.100.100.100 100.115.92.0/23 fd7a:115c:a1e0::/48 fd7a:115c:a1e0::53 100.101.102.103 }
         pass quick inet from <ts> to any
         pass quick inet from any to <ts>
-        pass quick inet6 any to <ts>
+        pass quick inet6 from <ts> to any
+        pass quick inet6 from any to <ts>
 
         # deny all other incoming connections
       ''
@@ -42,6 +43,6 @@ in {
     block in all
   '';
   system.activationScripts.etc.text = lib.mkAfter ''
-    sudo pfctl -a com.apple/nix-darwin -f /etc/pf.anchors/nix-darwin
+    sudo pfctl -a com.apple/nix-darwin -f /etc/pf.anchors/nix-darwin 2>/dev/null
   '';
 }
